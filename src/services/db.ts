@@ -46,6 +46,7 @@ export interface DbConfig {
   dbHost: string;
   dbName: string;
   dbUser: string;
+  dbPass?: string;
 }
 
 const DEFAULT_CONFIG: DbConfig = {
@@ -74,6 +75,9 @@ export function saveDbConfig(cfg: Partial<DbConfig>) {
 
 // Low-level query executor
 export async function executeQuery<T = any>(sql: string): Promise<{ success: boolean; data?: T[]; message?: string; insert_id?: number }> {
+  const cfg = getDbConfig();
+
+  // 1. Try backend proxy route (/api/db)
   try {
     const res = await fetch('/api/db', {
       method: 'POST',
@@ -84,14 +88,48 @@ export async function executeQuery<T = any>(sql: string): Promise<{ success: boo
       }),
     });
 
-    const json = await res.json();
-    return json;
-  } catch (err: any) {
-    return {
-      success: false,
-      message: err.message || 'Network error communicating with DB API bridge',
-    };
+    const contentType = res.headers.get('content-type') || '';
+    if (res.ok && contentType.includes('application/json')) {
+      const json = await res.json();
+      return json;
+    }
+  } catch (err) {
+    // Backend proxy route unavailable (e.g. static hosting on GitHub Pages)
   }
+
+  // 2. Direct CORS fallback to remote PHP Bridge (https://api.veloralbillal.top/db_bridge.php)
+  if (cfg.bridgeUrl) {
+    try {
+      const postData = new URLSearchParams();
+      postData.append('token', cfg.token || 'Billal50598326');
+      postData.append('action', 'query');
+      postData.append('sql', sql);
+      postData.append('db_host', cfg.dbHost || 'localhost');
+      postData.append('db_name', cfg.dbName || 'veloralb_Digital');
+      postData.append('db_user', cfg.dbUser || 'veloralb_Digital');
+      if (cfg.dbPass) postData.append('db_pass', cfg.dbPass);
+
+      const bridgeRes = await fetch(cfg.bridgeUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: postData.toString(),
+      });
+
+      if (bridgeRes.ok) {
+        const text = await bridgeRes.text();
+        try {
+          return JSON.parse(text);
+        } catch {}
+      }
+    } catch (bridgeErr) {
+      console.warn('Direct PHP Bridge request failed:', bridgeErr);
+    }
+  }
+
+  return {
+    success: false,
+    message: 'Static deployment mode active (Local storage fallback enabled)',
+  };
 }
 
 // Check DB Connection health
