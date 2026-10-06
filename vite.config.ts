@@ -5,10 +5,7 @@ import {defineConfig} from 'vite';
 
 export default defineConfig(({ command }) => {
   const isProd = command === 'build';
-  const githubRepo = process.env.GITHUB_REPOSITORY;
-  const defaultProdBase = '/Veloral-shop/';
-  const repoName = githubRepo ? `/${githubRepo.split('/')[1]}/` : defaultProdBase;
-  const base = process.env.VITE_BASE_PATH || (isProd ? defaultProdBase : repoName);
+  const base = process.env.VITE_BASE_PATH || (isProd ? './' : './');
 
   return {
     base,
