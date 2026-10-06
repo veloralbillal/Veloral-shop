@@ -50,6 +50,7 @@ import { AuthScreen } from './components/AuthScreen';
 import { LandingPage } from './components/LandingPage';
 import { EventPopup } from './components/EventPopup';
 import { ProductsPage } from './components/ProductsPage';
+import { GlobalSkeletonLoader } from './components/GlobalSkeletonLoader';
 import { getAppUrlState, updateAppUrl } from './utils/urlUtils';
 import { 
   Zap, Truck, Smartphone, Globe, 
@@ -96,6 +97,7 @@ export default function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isEventPopupDismissed, setIsEventPopupDismissed] = useState(sessionStorage.getItem('veloral_event_dismissed') === 'true');
   const [lastPopupId, setLastPopupId] = useState<string | null>(null);
+  const [isLoadingData, setIsLoadingData] = useState(true);
 
   const loadData = async () => {
     try {
@@ -145,7 +147,44 @@ export default function App() {
         setLastPopupId(null);
       }
 
-      // Extract URL product ID query parameter to support direct shareable product links
+      // Read GitHub Pages SPA 404 redirect query parameter 'p' for deep linking
+      const urlParams = new URLSearchParams(window.location.search);
+      const redirectPath = urlParams.get('p');
+      if (redirectPath) {
+        // Clean query parameter 'p' from browser history while retaining any other parameters
+        const cleanUrl = new URL(window.location.href);
+        cleanUrl.searchParams.delete('p');
+        window.history.replaceState(null, '', cleanUrl.toString());
+
+        const normalizedPath = redirectPath.toLowerCase().trim().replace(/^\/+|\/+$/g, '');
+        if (normalizedPath === 'admin') {
+          setCurrentView('admin');
+        } else if (normalizedPath === 'products') {
+          setCurrentView('products');
+        } else if (normalizedPath === 'cart') {
+          setCurrentView('cart');
+        } else if (normalizedPath === 'profile' || normalizedPath === 'user') {
+          setCurrentView('profile');
+        } else if (normalizedPath === 'orders' || normalizedPath === 'profile-orders') {
+          setCurrentView('profile-orders');
+        } else if (normalizedPath === 'tracker') {
+          setCurrentView('tracker');
+        } else if (normalizedPath === 'affiliate-deals') {
+          setCurrentView('affiliate-deals');
+        } else if (normalizedPath === 'auth') {
+          setCurrentView('auth');
+        } else if (normalizedPath === 'store' || normalizedPath === 'home') {
+          setCurrentView('store');
+        }
+      }
+
+      // Check for order_id query parameter to support Order Tracker deep linking
+      const orderIdParam = urlParams.get('order_id');
+      if (orderIdParam) {
+        setTrackOrderNumber(orderIdParam);
+        setCurrentView('tracker');
+      }
+
       // Extract URL parameters for deep linking or shared hosting
       const urlState = getAppUrlState();
       if (urlState.page === 'products') {
@@ -186,6 +225,8 @@ export default function App() {
       }
     } catch (e) {
       console.error('Failed to load initial data:', e);
+    } finally {
+      setIsLoadingData(false);
     }
   };
 
@@ -1931,7 +1972,7 @@ export default function App() {
                             list.push({
                               id: cc.id,
                               label: cc.label,
-                              icon: <Zap className="w-4 h-4 text-indigo-500 shrink-0" />
+                              icon: cc.icon ? <span className="text-sm shrink-0">{cc.icon}</span> : <Zap className="w-4 h-4 text-indigo-500 shrink-0" />
                             });
                           }
                         });
@@ -2154,6 +2195,10 @@ export default function App() {
       </div>
     );
   };
+
+  if (isLoadingData) {
+    return <GlobalSkeletonLoader />;
+  }
 
   if (currentView === 'landing') {
     return (

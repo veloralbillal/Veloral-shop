@@ -498,6 +498,7 @@ export const AccountMarketplace: React.FC<AccountMarketplaceProps> = ({
                       <img
                         src={account.image_url}
                         alt={account.title}
+                        loading="lazy"
                         className="w-14 h-14 object-contain rounded-2xl bg-slate-950 border border-slate-800 p-2 shrink-0 group-hover:scale-105 transition-transform shadow-inner"
                       />
                       <span className="absolute -bottom-1 -right-1 flex h-3.5 w-3.5">
@@ -850,6 +851,7 @@ export const AccountMarketplace: React.FC<AccountMarketplaceProps> = ({
                       <img
                         src={sellImage}
                         alt="Proof Preview"
+                        loading="lazy"
                         className="w-16 h-16 object-cover rounded-xl border border-slate-700 shrink-0"
                       />
                       <div className="text-xs text-emerald-400 font-bold flex items-center gap-1">

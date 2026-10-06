@@ -50,6 +50,7 @@ export interface AccountItem {
 export interface CustomCategory {
   id: string;
   label: string;
+  icon?: string;
 }
 
 export interface SubCategory {

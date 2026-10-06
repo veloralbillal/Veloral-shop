@@ -32,14 +32,48 @@ export const ProductDetailScreen: React.FC<ProductDetailScreenProps> = ({
   const isDigital = product.category === 'digital';
   const hasDiscount = product.discount_price && product.discount_price > product.price;
 
-  const handleShare = () => {
+  const handleShare = async () => {
     const url = new URL(window.location.href);
     url.searchParams.set('product', product.id);
     const shareUrl = url.toString();
+
+    const shareData = {
+      title: product.title,
+      text: `Check out ${product.title} for ৳${product.price.toLocaleString()} on Veloral Digital & Shop!`,
+      url: shareUrl,
+    };
+
+    if (navigator.share) {
+      try {
+        await navigator.share(shareData);
+        return;
+      } catch (err: any) {
+        if (err.name !== 'AbortError') {
+          console.error('Share failed:', err);
+        }
+        return;
+      }
+    }
+
+    // Fallback to clipboard copy
     navigator.clipboard.writeText(shareUrl).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });
+  };
+
+  const handleWhatsAppShare = () => {
+    const url = new URL(window.location.href);
+    url.searchParams.set('product', product.id);
+    const text = encodeURIComponent(`Buy ${product.title} for ৳${product.price.toLocaleString()} on Veloral Shop: ${url.toString()}`);
+    window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
+  };
+
+  const handleFacebookShare = () => {
+    const url = new URL(window.location.href);
+    url.searchParams.set('product', product.id);
+    const fbUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url.toString())}`;
+    window.open(fbUrl, '_blank', 'width=600,height=400');
   };
 
   return (
@@ -195,16 +229,44 @@ export const ProductDetailScreen: React.FC<ProductDetailScreenProps> = ({
             )}
 
             {/* Price tag */}
-            <div className="p-4 bg-slate-50 border border-slate-200/60 rounded-2xl flex items-baseline gap-2.5">
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">মূল্য:</span>
-              <span className="text-3xl font-black text-slate-900">
-                ৳{product.price.toLocaleString()}
-              </span>
-              {hasDiscount && (
-                <span className="text-sm font-semibold text-slate-400 line-through">
-                  ৳{product.discount_price?.toLocaleString()}
+            <div className="p-4 bg-slate-50 border border-slate-200/60 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <div className="flex items-baseline gap-2.5">
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">মূল্য:</span>
+                <span className="text-3xl font-black text-slate-900">
+                  ৳{product.price.toLocaleString()}
                 </span>
-              )}
+                {hasDiscount && (
+                  <span className="text-sm font-semibold text-slate-400 line-through">
+                    ৳{product.discount_price?.toLocaleString()}
+                  </span>
+                )}
+              </div>
+
+              {/* Quick Social Share Buttons */}
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <button
+                  onClick={handleShare}
+                  className="px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl flex items-center gap-1 shadow-xs transition-all cursor-pointer"
+                  title="Share product"
+                >
+                  <Share2 className="w-3.5 h-3.5" />
+                  <span>{copied ? 'কপি হয়েছে' : 'শেয়ার'}</span>
+                </button>
+                <button
+                  onClick={handleWhatsAppShare}
+                  className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl flex items-center gap-1 shadow-xs transition-all cursor-pointer"
+                  title="Share on WhatsApp"
+                >
+                  <span>WhatsApp</span>
+                </button>
+                <button
+                  onClick={handleFacebookShare}
+                  className="px-2.5 py-1.5 bg-blue-800 hover:bg-blue-900 text-white text-xs font-bold rounded-xl flex items-center gap-1 shadow-xs transition-all cursor-pointer"
+                  title="Share on Facebook"
+                >
+                  <span>Facebook</span>
+                </button>
+              </div>
             </div>
 
             {/* Genuine Guarantee Stamp */}
