@@ -4,8 +4,7 @@ import path from 'path';
 import {defineConfig} from 'vite';
 
 export default defineConfig(({ command }) => {
-  const isProd = command === 'build';
-  const base = process.env.VITE_BASE_PATH || (isProd ? './' : './');
+  const base = process.env.VITE_BASE_PATH || '/';
 
   return {
     base,
