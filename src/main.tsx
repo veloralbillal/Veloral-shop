@@ -5,10 +5,21 @@ import './index.css';
 
 // Prevent harmless Vite HMR WebSocket disconnect messages in sandbox environments
 window.addEventListener('unhandledrejection', (event) => {
-  if (event.reason && (String(event.reason).includes('WebSocket') || String(event.reason?.message).includes('WebSocket'))) {
+  const reason = event.reason;
+  const message = typeof reason === 'string' ? reason : reason?.message || String(reason || '');
+  if (message.includes('WebSocket') || message.includes('closed without opened') || message.includes('failed to connect to websocket')) {
     event.preventDefault();
+    event.stopPropagation();
   }
-});
+}, true);
+
+window.addEventListener('error', (event) => {
+  const message = event.message || '';
+  if (message.includes('WebSocket') || message.includes('closed without opened')) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+}, true);
 
 createRoot(document.getElementById('root')!).render(
   <ErrorBoundary>

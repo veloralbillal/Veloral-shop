@@ -122,7 +122,7 @@ export async function executeQuery<T = any>(sql: string): Promise<{ success: boo
         } catch {}
       }
     } catch (bridgeErr) {
-      console.warn('Direct PHP Bridge request failed:', bridgeErr);
+      // Silently fallback to local storage mode
     }
   }
 
