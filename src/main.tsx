@@ -21,8 +21,24 @@ window.addEventListener('error', (event) => {
   }
 }, true);
 
-createRoot(document.getElementById('root')!).render(
-  <ErrorBoundary>
-    <App />
-  </ErrorBoundary>
-);
+try {
+  const rootElement = document.getElementById('root');
+  if (!rootElement) throw new Error('Root element not found');
+  
+  createRoot(rootElement).render(
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
+  );
+} catch (err: any) {
+  console.error('React Mount Error:', err);
+  // Fallback if React completely fails to mount
+  const fallback = document.getElementById('error-status');
+  if (fallback) {
+    fallback.innerText = "Fatal: " + (err.message || "React Crash");
+    const actions = document.getElementById('recovery-actions');
+    if (actions) actions.style.display = 'block';
+    const spinner = document.getElementById('loading-spinner');
+    if (spinner) spinner.style.display = 'none';
+  }
+}
