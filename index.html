@@ -16,13 +16,33 @@
     <div id="root">
       <div style="min-height: 100vh; background: #020617; display: flex; align-items: center; justify-content: center; color: white; font-family: sans-serif; text-align: center; padding: 20px;">
         <div style="max-width: 320px;">
-          <div style="width: 60px; height: 60px; background: #2563eb; border-radius: 18px; margin: 0 auto 24px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 24px; box-shadow: 0 10px 25px rgba(37,99,235,0.4);">V</div>
+          <div id="loading-spinner" style="width: 60px; height: 60px; border: 4px solid rgba(255,255,255,0.1); border-top-color: #2563eb; border-radius: 50%; margin: 0 auto 24px; animation: spin 1s linear infinite;"></div>
+          <style>@keyframes spin { to { transform: rotate(360deg); } }</style>
+          <div style="width: 60px; height: 60px; background: #2563eb; border-radius: 18px; margin: 0 auto 24px; display: none; align-items: center; justify-content: center; font-weight: 900; font-size: 24px; box-shadow: 0 10px 25px rgba(37,99,235,0.4);" id="app-logo">V</div>
           <h2 style="font-size: 20px; font-weight: 900; margin-bottom: 12px; letter-spacing: -0.025em;">Veloral Digital & Shop</h2>
-          <p style="font-size: 13px; color: #94a3b8; margin-bottom: 28px; line-height: 1.6;">লোডিং হচ্ছে অথবা অ্যাপ আটকে গেছে। সমস্যার সমাধান করতে নিচের লাল বাটনে চাপুন।</p>
-          <button onclick="localStorage.clear(); sessionStorage.clear(); window.location.reload();" style="padding: 12px 24px; background: #e11d48; border: none; border-radius: 14px; color: white; font-weight: 800; font-size: 13px; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 12px rgba(225,29,72,0.3);">রিসেট ও রিলোড (Fix Stuck App)</button>
+          <p id="fallback-msg" style="font-size: 13px; color: #94a3b8; margin-bottom: 28px; line-height: 1.6;">স্টোর লোড হচ্ছে, দয়া করে অপেক্ষা করুন...</p>
+          <div id="recovery-actions" style="display: none;">
+            <p style="font-size: 13px; color: #f43f5e; margin-bottom: 20px; font-weight: bold;">অ্যাপ লোড হতে ব্যর্থ হয়েছে।</p>
+            <button onclick="localStorage.clear(); sessionStorage.clear(); window.location.reload();" style="padding: 12px 24px; background: #e11d48; border: none; border-radius: 14px; color: white; font-weight: 800; font-size: 13px; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 12px rgba(225,29,72,0.3);">রিসেট ও রিলোড (Fix Stuck App)</button>
+          </div>
         </div>
       </div>
+      <script>
+        // If React doesn't take over in 8 seconds, show recovery actions
+        setTimeout(function() {
+          if (document.getElementById('loading-spinner')) {
+            document.getElementById('loading-spinner').style.display = 'none';
+            document.getElementById('app-logo').style.display = 'flex';
+            document.getElementById('fallback-msg').innerText = 'লোডিং হচ্ছে না? ব্যাকআপ থেকে শুরু করতে নিচের বাটনে চাপুন।';
+            document.getElementById('recovery-actions').style.display = 'block';
+          }
+        }, 8000);
+        window.onerror = function(msg, url, line) {
+          console.error("Critical Error:", msg, "at", url, ":", line);
+          return false;
+        };
+      </script>
     </div>
-    <script type="module" src="./src/main.tsx"></script>
+    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

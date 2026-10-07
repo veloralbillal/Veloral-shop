@@ -184,7 +184,7 @@ export default function App() {
     // Safety timeout to force app to render even if some DB calls hang indefinitely
     const safetyTimeout = setTimeout(() => {
       setIsLoadingData(false);
-    }, 8000);
+    }, 5000);
 
     try {
       // Non-blocking background database verification
