@@ -615,7 +615,7 @@ function setLocalAliExpressOrders(orders: AliExpressDemandOrder[]) {
 export async function fetchProducts(category?: string, limit: number = 50, offset: number = 0): Promise<Product[]> {
   const catFilter = category && category !== 'all' ? `WHERE category = '${category.replace(/'/g, "''")}'` : '';
   const sql = `
-    SELECT id, title, category, price, discount_price, image_url, description, stock, digital_payload, badge, cod_or_advance, sub_category, product_code, download_file_url, file_name, file_size, is_flash_sale, is_hot_sale, is_for_you, created_at 
+    SELECT * 
     FROM veloral_products 
     ${catFilter}
     ORDER BY created_at DESC 
@@ -711,7 +711,7 @@ export async function updateProduct(id: string, updates: Partial<Omit<Product, '
 
 export async function fetchOrders(limit: number = 50, offset: number = 0): Promise<Order[]> {
   const sql = `
-    SELECT id, order_number, order_type, customer_name, customer_phone, customer_email, delivery_address, items_summary, total_amount, payment_method, payment_phone, trx_id, player_id, server_id, operator, recharge_type, status, notes, license_key_delivered, download_file_url, file_name, product_code, created_at 
+    SELECT * 
     FROM veloral_orders 
     ORDER BY created_at DESC 
     LIMIT ${limit} OFFSET ${offset}
@@ -788,7 +788,7 @@ export async function updateOrderStatus(orderId: string, status: Order['status']
 
 export async function fetchAliExpressOrders(limit: number = 50, offset: number = 0): Promise<AliExpressDemandOrder[]> {
   const sql = `
-    SELECT id, order_number, customer_name, customer_phone, customer_email, product_url, product_title, variant_info, quantity, estimated_usd_price, estimated_bdt_price, delivery_address, payment_method, payment_phone, trx_id, notes, admin_quoted_price, status, created_at 
+    SELECT * 
     FROM veloral_aliexpress_orders 
     ORDER BY created_at DESC 
     LIMIT ${limit} OFFSET ${offset}

@@ -108,32 +108,42 @@ export default function App() {
   const loadData = async () => {
     try {
       await initializeDatabaseTables();
-      const [sett, evts, cats, subCats] = await Promise.all([
+      const [sett, evts, cats, subCats, prods, ords, aliOrds, usrs, revs] = await Promise.all([
         fetchStoreSettings(),
         fetchEvents(),
         fetchCategories(),
-        fetchSubCategories()
+        fetchSubCategories(),
+        fetchProducts(),
+        fetchOrders(),
+        fetchAliExpressOrders(),
+        fetchUsers(),
+        fetchReviews()
       ]);
 
       const mergedSettings = {
         ...sett,
-        events: evts,
-        custom_categories: cats,
-        sub_categories: subCats
+        events: (evts && evts.length > 0) ? evts : (sett.events && sett.events.length > 0 ? sett.events : INITIAL_SETTINGS.events),
+        custom_categories: (cats && cats.length > 0) ? cats : (sett.custom_categories && sett.custom_categories.length > 0 ? sett.custom_categories : INITIAL_SETTINGS.custom_categories),
+        sub_categories: (subCats && subCats.length > 0) ? subCats : (sett.sub_categories && sett.sub_categories.length > 0 ? sett.sub_categories : INITIAL_SETTINGS.sub_categories)
       };
       setSettings(mergedSettings);
 
-      // Fetch products in background
-      fetchProducts().then(prods => {
-        if (prods && prods.length > 0) {
-          setProducts(prods);
-        }
-      });
+      if (prods && prods.length > 0) {
+        setProducts(prods);
+      }
+      if (ords && ords.length > 0) {
+        setOrders(ords);
+      }
+      if (aliOrds && aliOrds.length > 0) {
+        setAliExpressOrders(aliOrds);
+      }
+      if (usrs && usrs.length > 0) {
+        setUsers(usrs);
+      }
+      if (revs && revs.length > 0) {
+        setReviews(revs);
+      }
 
-      fetchOrders().then(setOrders);
-      fetchAliExpressOrders().then(setAliExpressOrders);
-      fetchUsers().then(setUsers);
-      fetchReviews().then(setReviews);
       fetchAffiliateProducts().then(setAffiliateProducts);
       
       setTopupCatalog(getTopupCatalog());
