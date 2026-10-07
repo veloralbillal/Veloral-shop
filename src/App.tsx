@@ -163,18 +163,26 @@ export default function App() {
   });
 
   const loadData = async () => {
+    // Safety timeout to force app to render even if some DB calls hang indefinitely
+    const safetyTimeout = setTimeout(() => {
+      setIsLoadingData(false);
+    }, 15000);
+
     try {
       // Non-blocking background database verification
       initializeDatabaseTables().catch(() => {});
 
-      // Use individual try-catches to ensure one slow/failing query doesn't block everything
+      // Use individual try-catches with a race timeout to ensure one slow/failing query doesn't block everything
       const fetchTask = async (task: Promise<any>, setter: (val: any) => void) => {
         try {
-          const result = await task;
+          const result = await Promise.race([
+            task,
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Fetch Timeout')), 8000))
+          ]);
           if (result) setter(result);
           return result;
         } catch (e) {
-          console.error('Fetch task failed:', e);
+          console.warn('Fetch task failed or timed out:', e);
           return null;
         }
       };
@@ -208,7 +216,7 @@ export default function App() {
         fetchTask(fetchReviews(), setReviews)
       ]);
 
-      fetchAffiliateProducts().then(setAffiliateProducts);
+      fetchAffiliateProducts().then(setAffiliateProducts).catch(() => {});
       
       setTopupCatalog(getTopupCatalog());
       setAccounts(fetchAccounts());
@@ -310,6 +318,7 @@ export default function App() {
     } catch (e) {
       console.error('Failed to load initial data:', e);
     } finally {
+      clearTimeout(safetyTimeout);
       setIsLoadingData(false);
     }
   };
@@ -2278,10 +2287,49 @@ export default function App() {
         </footer>
       </div>
     );
+
+    return null;
   };
 
+  // Final Total Fallback UI to prevent white screen if currentView is somehow invalid or no conditions matched
+  const TotalFallbackUI = (
+    <div className="flex-1 flex flex-col items-center justify-center p-12 bg-slate-950 text-slate-100 min-h-screen">
+      <div className="w-16 h-16 bg-blue-600/10 border border-blue-500/20 text-blue-400 rounded-3xl flex items-center justify-center text-2xl font-bold mb-4 animate-bounce">V</div>
+      <h3 className="text-lg font-black mb-2 text-white">Welcome to Veloral Shop</h3>
+      <p className="text-xs text-slate-400 mb-6 text-center max-w-xs leading-relaxed">স্টোর লোড হতে কিছুটা সময় নিচ্ছে অথবা ভিউ খুঁজে পাওয়া যায়নি। হোম পেজে ফিরে যেতে নিচের বাটনে চাপুন।</p>
+      <button
+        onClick={() => {
+          setActiveCategory('all');
+          setCurrentView('store');
+          setIsCheckoutOpen(false);
+          setIsLoadingData(false);
+          window.location.reload();
+        }}
+        className="px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black text-xs rounded-2xl shadow-xl transition-all active:scale-95 cursor-pointer"
+      >
+        রিলোড করুন (Reload App)
+      </button>
+    </div>
+  );
+
   if (isLoadingData) {
-    return <GlobalSkeletonLoader />;
+    return (
+      <div className="relative">
+        <GlobalSkeletonLoader />
+        {/* Stuck UI Fallback */}
+        <div className="fixed bottom-10 left-0 right-0 z-50 flex justify-center px-6">
+          <div className="bg-slate-900/90 backdrop-blur-md border border-slate-800 p-4 rounded-3xl shadow-2xl flex flex-col items-center gap-3 animate-in slide-in-from-bottom-10 duration-1000 delay-[5000ms]">
+            <p className="text-[10px] text-slate-400 font-medium">লোডিং হতে দেরি হচ্ছে? ব্যাকআপ মেমোরি থেকে স্টোর ওপেন করতে পারেন।</p>
+            <button 
+              onClick={() => setIsLoadingData(false)}
+              className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-black rounded-xl shadow-lg cursor-pointer transition-all"
+            >
+              সরাসরি স্টোর ওপেন করুন (Force Start)
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   if (currentView === 'landing') {
@@ -2420,7 +2468,7 @@ export default function App() {
       {/* Main layout contents with left margin on desktop to avoid overlap */}
       <div className="lg:pl-72 min-h-screen flex flex-col justify-between bg-slate-950 text-slate-100 relative">
         <div className="flex-1 flex flex-col w-full max-w-full overflow-x-hidden">
-          {renderActiveScreen()}
+          {renderActiveScreen() || TotalFallbackUI}
         </div>
 
         {/* Central Toast system */}
