@@ -27,7 +27,7 @@ jobs:
       - name: Build Application
         run: npm run build
         env:
-          VITE_BASE_PATH: /Veloral-shop/
+          VITE_BASE_PATH: /
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
@@ -35,3 +35,4 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./dist
           publish_branch: gh-pages
+          cname: store.veloralbillal.top

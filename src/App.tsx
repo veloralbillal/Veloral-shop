@@ -95,7 +95,13 @@ export default function App() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [trackOrderNumber, setTrackOrderNumber] = useState<string>('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isEventPopupDismissed, setIsEventPopupDismissed] = useState(sessionStorage.getItem('veloral_event_dismissed') === 'true');
+  const [isEventPopupDismissed, setIsEventPopupDismissed] = useState(() => {
+    try {
+      return sessionStorage.getItem('veloral_event_dismissed') === 'true';
+    } catch {
+      return false;
+    }
+  });
   const [lastPopupId, setLastPopupId] = useState<string | null>(null);
   const [isLoadingData, setIsLoadingData] = useState(true);
 
@@ -141,7 +147,7 @@ export default function App() {
         if (mergedSettings.active_event_popup_id !== lastPopupId) {
           setLastPopupId(mergedSettings.active_event_popup_id);
           setIsEventPopupDismissed(false);
-          sessionStorage.removeItem('veloral_event_dismissed');
+          try { sessionStorage.removeItem('veloral_event_dismissed'); } catch {}
         }
       } else {
         setLastPopupId(null);
@@ -2452,7 +2458,7 @@ export default function App() {
               event={activeEvent}
               onClose={() => {
                 setIsEventPopupDismissed(true);
-                sessionStorage.setItem('veloral_event_dismissed', 'true');
+                try { sessionStorage.setItem('veloral_event_dismissed', 'true'); } catch {}
               }}
             />
           );
