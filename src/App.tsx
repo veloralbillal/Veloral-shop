@@ -71,9 +71,27 @@ export default function App() {
     }
   });
   const [affiliateProducts, setAffiliateProducts] = useState<AffiliateProduct[]>([]);
-  const [accounts, setAccounts] = useState<AccountItem[]>(() => fetchAccounts());
-  const [offers, setOffers] = useState<OfferItem[]>(() => fetchOffers());
-  const [offerSubmissions, setOfferSubmissions] = useState<OfferSubmission[]>(() => fetchOfferSubmissions());
+  const [accounts, setAccounts] = useState<AccountItem[]>(() => {
+    try {
+      return fetchAccounts();
+    } catch {
+      return [];
+    }
+  });
+  const [offers, setOffers] = useState<OfferItem[]>(() => {
+    try {
+      return fetchOffers();
+    } catch {
+      return [];
+    }
+  });
+  const [offerSubmissions, setOfferSubmissions] = useState<OfferSubmission[]>(() => {
+    try {
+      return fetchOfferSubmissions();
+    } catch {
+      return [];
+    }
+  });
   const [orders, setOrders] = useState<Order[]>(() => {
     try {
       const o = getLocalOrders();
@@ -166,7 +184,7 @@ export default function App() {
     // Safety timeout to force app to render even if some DB calls hang indefinitely
     const safetyTimeout = setTimeout(() => {
       setIsLoadingData(false);
-    }, 15000);
+    }, 8000);
 
     try {
       // Non-blocking background database verification
@@ -187,7 +205,7 @@ export default function App() {
         }
       };
 
-      let latestSettings = settings;
+      let latestSettings = settings || INITIAL_SETTINGS;
 
       await Promise.all([
         fetchTask(fetchStoreSettings(), (sett) => {
@@ -2468,7 +2486,14 @@ export default function App() {
       {/* Main layout contents with left margin on desktop to avoid overlap */}
       <div className="lg:pl-72 min-h-screen flex flex-col justify-between bg-slate-950 text-slate-100 relative">
         <div className="flex-1 flex flex-col w-full max-w-full overflow-x-hidden">
-          {renderActiveScreen() || TotalFallbackUI}
+          {(() => {
+            try {
+              return renderActiveScreen() || TotalFallbackUI;
+            } catch (err) {
+              console.error("Render Error:", err);
+              return TotalFallbackUI;
+            }
+          })()}
         </div>
 
         {/* Central Toast system */}

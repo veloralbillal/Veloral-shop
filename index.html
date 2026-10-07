@@ -13,7 +13,16 @@
     <meta name="twitter:card" content="summary_large_image" />
   </head>
   <body class="bg-[#020617] text-slate-100 min-h-screen antialiased">
-    <div id="root"></div>
+    <div id="root">
+      <div style="min-height: 100vh; background: #020617; display: flex; align-items: center; justify-content: center; color: white; font-family: sans-serif; text-align: center; padding: 20px;">
+        <div style="max-width: 320px;">
+          <div style="width: 60px; height: 60px; background: #2563eb; border-radius: 18px; margin: 0 auto 24px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 24px; box-shadow: 0 10px 25px rgba(37,99,235,0.4);">V</div>
+          <h2 style="font-size: 20px; font-weight: 900; margin-bottom: 12px; letter-spacing: -0.025em;">Veloral Digital & Shop</h2>
+          <p style="font-size: 13px; color: #94a3b8; margin-bottom: 28px; line-height: 1.6;">লোডিং হচ্ছে অথবা অ্যাপ আটকে গেছে। সমস্যার সমাধান করতে নিচের লাল বাটনে চাপুন।</p>
+          <button onclick="localStorage.clear(); sessionStorage.clear(); window.location.reload();" style="padding: 12px 24px; background: #e11d48; border: none; border-radius: 14px; color: white; font-weight: 800; font-size: 13px; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 12px rgba(225,29,72,0.3);">রিসেট ও রিলোড (Fix Stuck App)</button>
+        </div>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

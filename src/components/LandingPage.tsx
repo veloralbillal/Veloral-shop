@@ -19,10 +19,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   featuredProducts,
   onOpenAuth,
 }) => {
-  const cleanPhone = settings.whatsapp_number.replace(/[^0-9+]/g, '');
+  const cleanPhone = (settings?.whatsapp_number || '+8801859000000').replace(/[^0-9+]/g, '');
 
-  const flashSaleProducts = featuredProducts.filter(p => p.is_flash_sale);
-  const topRankingProducts = featuredProducts.filter(p => p.is_top_ranking);
+  const featuredArray = Array.isArray(featuredProducts) ? featuredProducts : [];
+  const flashSaleProducts = featuredArray.filter(p => p && p.is_flash_sale);
+  const topRankingProducts = featuredArray.filter(p => p && p.is_top_ranking);
 
   const services = [
     {
@@ -358,44 +359,44 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {featuredProducts.slice(0, 6).map((prod) => (
+            {(Array.isArray(featuredProducts) ? featuredProducts : []).slice(0, 6).map((prod) => (
               <div 
-                key={prod.id}
+                key={prod?.id || Math.random()}
                 className="bg-slate-900/90 border border-slate-800 rounded-3xl overflow-hidden hover:border-slate-700 transition-all flex flex-col justify-between group"
               >
                 <div className="relative aspect-video sm:aspect-[4/3] bg-slate-950 overflow-hidden">
                   <img 
-                    src={prod.image_url || 'https://images.unsplash.com/photo-1593642632823-8f785ba67e45?auto=format&fit=crop&w=600&q=80'} 
-                    alt={prod.title}
+                    src={prod?.image_url || 'https://images.unsplash.com/photo-1593642632823-8f785ba67e45?auto=format&fit=crop&w=600&q=80'} 
+                    alt={prod?.title || 'Product'}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     loading="lazy"
                   />
-                  {prod.badge && (
+                  {prod?.badge && (
                     <span className="absolute top-3 left-3 bg-blue-600/90 backdrop-blur-xs text-white text-[10px] font-black px-2.5 py-1 rounded-lg">
                       {prod.badge}
                     </span>
                   )}
                   <span className="absolute top-3 right-3 bg-slate-950/80 backdrop-blur-xs text-slate-300 text-[10px] font-bold px-2 py-0.5 rounded-md uppercase border border-slate-800">
-                    {prod.category === 'digital' ? 'ডিজিটাল কি' : 'ফিজিক্যাল'}
+                    {prod?.category === 'digital' ? 'ডিজিটাল কি' : 'ফিজিক্যাল'}
                   </span>
                 </div>
 
                 <div className="p-4 sm:p-5 space-y-3 flex-1 flex flex-col justify-between">
                   <div>
                     <h3 className="font-bold text-sm sm:text-base text-white line-clamp-1 group-hover:text-blue-400 transition-colors">
-                      {prod.title}
+                      {prod?.title || 'Unnamed Product'}
                     </h3>
                     <p className="text-xs text-slate-400 line-clamp-2 mt-1">
-                      {prod.description}
+                      {prod?.description || ''}
                     </p>
                   </div>
 
                   <div className="pt-3 border-t border-slate-800/80 flex items-center justify-between">
                     <div>
                       <div className="text-base sm:text-lg font-black text-emerald-400">
-                        ৳{prod.price.toLocaleString()}
+                        ৳{(prod?.price || 0).toLocaleString()}
                       </div>
-                      {prod.discount_price && (
+                      {prod?.discount_price && (
                         <div className="text-xs text-slate-500 line-through">
                           ৳{prod.discount_price.toLocaleString()}
                         </div>

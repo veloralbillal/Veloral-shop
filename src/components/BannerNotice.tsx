@@ -18,8 +18,8 @@ export const BannerNotice: React.FC<BannerNoticeProps> = ({ settings, dbStatus, 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  const cleanPhone = (settings.whatsapp_number || '01859000000').replace(/[^0-9+]/g, '');
-  const noticeText = settings.notice_text?.trim() || 'Welcome! Instant digital key delivery and 24/7 customer support active.';
+  const cleanPhone = (settings?.whatsapp_number || '01859000000').replace(/[^0-9+]/g, '');
+  const noticeText = settings?.notice_text?.trim() || 'Welcome! Instant digital key delivery and 24/7 customer support active.';
 
   const handleDismiss = () => {
     setIsDismissed(true);
