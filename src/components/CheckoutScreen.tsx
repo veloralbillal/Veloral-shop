@@ -369,7 +369,7 @@ export const CheckoutScreen: React.FC<CheckoutScreenProps> = ({
         localStorage.setItem('veloral_pending_zinipay_order', JSON.stringify(orderPayload));
 
         // Call our secure backend-proxy
-        const response = await fetch('/api/zinipay/create', {
+        const response = await fetch('./api/zinipay/create', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'

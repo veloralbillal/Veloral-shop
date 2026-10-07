@@ -30,6 +30,11 @@ try {
       <App />
     </ErrorBoundary>
   );
+  
+  // Signal to the HTML-level diagnostic script that React has successfully taken over
+  if (typeof (window as any).markAppAsLoaded === 'function') {
+    (window as any).markAppAsLoaded();
+  }
 } catch (err: any) {
   console.error('React Mount Error:', err);
   // Fallback if React completely fails to mount

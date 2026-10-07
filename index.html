@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Veloral Digital & Shop</title>
     <meta name="description" content="Digital products, physical goods, mobile & game top-up, and AliExpress on-demand shopping platform." />
-    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
-    <link rel="manifest" href="manifest.json" />
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <link rel="manifest" href="./manifest.json" />
     <meta property="og:title" content="Veloral Digital & Shop" />
     <meta property="og:description" content="Digital products, physical goods, mobile & game top-up, and AliExpress on-demand shopping platform." />
     <meta property="og:type" content="website" />
@@ -22,36 +22,48 @@
           <h2 style="font-size: 20px; font-weight: 900; margin-bottom: 12px; letter-spacing: -0.025em;">Veloral Digital & Shop</h2>
           <p id="fallback-msg" style="font-size: 13px; color: #94a3b8; margin-bottom: 28px; line-height: 1.6;">স্টোর লোড হচ্ছে, দয়া করে অপেক্ষা করুন...</p>
           <div id="recovery-actions" style="display: none;">
-            <p id="error-status" style="font-size: 11px; color: #f43f5e; margin-bottom: 20px; font-weight: bold; background: rgba(244,63,94,0.1); padding: 8px; border-radius: 8px;">অ্যাপ লোড হতে ব্যর্থ হয়েছে (Asset Path Issue)</p>
+            <p id="error-status" style="font-size: 11px; color: #f43f5e; margin-bottom: 10px; font-weight: bold; background: rgba(244,63,94,0.1); padding: 8px; border-radius: 8px;">অ্যাপ লোড হতে ব্যর্থ হয়েছে (Asset Path Issue)</p>
+            <div id="debug-info" style="font-size: 10px; color: #64748b; margin-bottom: 20px; font-family: monospace; word-break: break-all; background: #0f172a; padding: 10px; border-radius: 8px; text-align: left;"></div>
             <button onclick="localStorage.clear(); sessionStorage.clear(); window.location.reload();" style="padding: 12px 24px; background: #e11d48; border: none; border-radius: 14px; color: white; font-weight: 800; font-size: 13px; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 12px rgba(225,29,72,0.3); width: 100%;">রিসেট ও রিলোড (Fix Stuck App)</button>
           </div>
         </div>
       </div>
       <script>
-        // Detection for GitHub Pages subfolder issue
-        if (window.location.pathname.length > 1 && !window.location.pathname.endsWith('/')) {
-           // Ensure trailing slash for relative paths to work correctly
-           // window.location.replace(window.location.href + '/');
-        }
+        (function() {
+          const debug = document.getElementById('debug-info');
+          const updateDebug = (msg) => { if(debug) debug.innerHTML += '<div>' + msg + '</div>'; };
+          
+          updateDebug('Path: ' + window.location.pathname);
+          updateDebug('Base: /Veloral-shop/');
 
-        // If React doesn't take over in 6 seconds, show recovery actions
-        setTimeout(function() {
-          if (document.getElementById('loading-spinner')) {
-            document.getElementById('loading-spinner').style.display = 'none';
-            document.getElementById('app-logo').style.display = 'flex';
-            document.getElementById('fallback-msg').innerText = 'লোডিং হচ্ছে না? ব্যাকআপ থেকে শুরু করতে নিচের বাটনে চাপুন।';
-            document.getElementById('recovery-actions').style.display = 'block';
-          }
-        }, 6000);
+          // If React doesn't take over in 8 seconds, show recovery actions
+          const timer = setTimeout(function() {
+            if (document.getElementById('loading-spinner')) {
+              document.getElementById('loading-spinner').style.display = 'none';
+              document.getElementById('app-logo').style.display = 'flex';
+              document.getElementById('fallback-msg').innerText = 'লোডিং হচ্ছে না? ব্যাকআপ থেকে শুরু করতে নিচের বাটনে চাপুন।';
+              document.getElementById('recovery-actions').style.display = 'block';
+              updateDebug('Status: Load Timeout');
+            }
+          }, 8000);
 
-        window.onerror = function(msg, url, line) {
-          console.error("Critical Error:", msg, "at", url, ":", line);
-          const status = document.getElementById('error-status');
-          if (status) status.innerText = "Error: " + msg.substring(0, 50);
-          return false;
-        };
+          window.onerror = function(msg, url, line) {
+            console.error("Critical Error:", msg, "at", url, ":", line);
+            const status = document.getElementById('error-status');
+            if (status) status.innerText = "Runtime Error: " + msg.substring(0, 40);
+            updateDebug('Err: ' + msg);
+            updateDebug('Src: ' + url.split('/').pop());
+            return false;
+          };
+
+          // Mark as loaded when React starts
+          window.markAppAsLoaded = function() {
+            clearTimeout(timer);
+            updateDebug('Status: Success');
+          };
+        })();
       </script>
     </div>
-    <script type="module" src="src/main.tsx"></script>
+    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

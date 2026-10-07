@@ -55,7 +55,7 @@ export const MobileEventsManager: React.FC<MobileEventsManagerProps> = ({
         field === 'title'
           ? 'Generate a short catchy Bengali title for a digital/gadget store special promotional offer'
           : `Write a short attractive Bengali promotional description for: ${newEventTitle || 'Special Store Offer'}`;
-      const res = await fetch('/api/generate-content', {
+      const res = await fetch('./api/generate-content', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt, context: 'Store promotions' }),

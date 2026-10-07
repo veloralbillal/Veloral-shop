@@ -51,7 +51,7 @@ export const MobileWebSettingsManager: React.FC<MobileWebSettingsManagerProps> =
   const handleGenerateNotice = async () => {
     setIsGenerating(true);
     try {
-      const res = await fetch('/api/generate-content', {
+      const res = await fetch('./api/generate-content', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

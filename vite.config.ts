@@ -4,7 +4,7 @@ import path from 'path';
 import {defineConfig} from 'vite';
 
 export default defineConfig(({ command }) => {
-  const base = './';
+  const base = '/Veloral-shop/';
 
   return {
     base,

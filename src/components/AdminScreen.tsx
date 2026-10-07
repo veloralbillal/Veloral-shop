@@ -193,7 +193,7 @@ export const AdminScreen: React.FC<AdminScreenProps> = ({
   const generateAIContent = async (prompt: string, context: string, targetStateSetter: (val: string) => void) => {
     setIsGenerating(prompt);
     try {
-      const res = await fetch('/api/generate-content', {
+      const res = await fetch('./api/generate-content', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt, context }),
