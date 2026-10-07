@@ -6,6 +6,14 @@ import {
 import { AdminAccountManager } from './admin/AdminAccountManager';
 import { AdminOffersManager } from './admin/AdminOffersManager';
 import { AdminAffiliateSection } from './affiliate/AdminAffiliateSection';
+import { MobileOrdersManager } from './admin/MobileOrdersManager';
+import { MobileUsersManager } from './admin/MobileUsersManager';
+import { MobileCategoriesManager } from './admin/MobileCategoriesManager';
+import { MobileCouponsManager } from './admin/MobileCouponsManager';
+import { MobileReviewsManager } from './admin/MobileReviewsManager';
+import { MobileTicketsManager } from './admin/MobileTicketsManager';
+import { MobileEventsManager } from './admin/MobileEventsManager';
+import { MobileWebSettingsManager } from './admin/MobileWebSettingsManager';
 import { 
   X, Shield, Lock, LayoutDashboard, ShoppingBag, Globe, 
   Settings as SettingsIcon, Database, CheckCircle2, AlertCircle, 
@@ -16,7 +24,7 @@ import {
 } from 'lucide-react';
 import { 
   checkDbConnection, initializeDatabaseTables, executeQuery,
-  fetchMySQLCounts, syncAllLocalDataToMySQL, fetchCoupons, saveCoupons, fetchTickets, saveTickets, getSystemLogs
+  fetchMySQLCounts, syncAllLocalDataToMySQL, fetchCoupons, saveCoupons, fetchTickets, saveTickets, getSystemLogs, creditUserWallet
 } from '../services/db';
 
 interface AdminScreenProps {
@@ -1088,33 +1096,18 @@ if (!empty($sql)) {
           )}
 
           {activeTab === 'users' && (
-            <div className="space-y-6 animate-in fade-in duration-200">
-              <h2 className="text-lg font-black text-white border-b border-slate-800 pb-2">Registered Users</h2>
-              <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
-                <table className="w-full text-xs text-left text-slate-400">
-                  <thead className="bg-slate-950 text-slate-200 uppercase">
-                    <tr>
-                      <th className="px-4 py-3">Name</th>
-                      <th className="px-4 py-3">Phone</th>
-                      <th className="px-4 py-3">Email</th>
-                      <th className="px-4 py-3">Role</th>
-                      <th className="px-4 py-3">Registration Date</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-800">
-                    {users.map(user => (
-                      <tr key={user.id} className="hover:bg-slate-800/50">
-                        <td className="px-4 py-3 text-white">{user.name}</td>
-                        <td className="px-4 py-3">{user.phone}</td>
-                        <td className="px-4 py-3">{user.email}</td>
-                        <td className="px-4 py-3 capitalize">{user.role || 'customer'}</td>
-                        <td className="px-4 py-3">{user.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+            <MobileUsersManager
+              users={users}
+              onUpdateUserWallet={(userId, newBalance) => {
+                const target = users.find(u => u.id === userId);
+                const currentBal = Number(target?.wallet_balance || 0);
+                const diff = newBalance - currentBal;
+                if (diff !== 0) {
+                  creditUserWallet(userId, diff, userId);
+                }
+              }}
+              showToast={(msg) => alert(msg)}
+            />
           )}
 
           {activeTab === 'dashboard' && (
@@ -1244,129 +1237,13 @@ if (!empty($sql)) {
 
           {/* TAB 2: REGULAR ORDERS */}
           {activeTab === 'orders' && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                <h2 className="text-lg font-black text-white">রেগুলার লাইসেন্স কি ও গেম টপ-আপ অর্ডারস ({orders.length})</h2>
-              </div>
-
-              {orders.length === 0 ? (
-                <div className="p-12 text-center text-slate-500 text-xs">কোনো রেগুলার অর্ডার পাওয়া যায়নি।</div>
-              ) : (
-                <div className="overflow-x-auto no-scrollbar pb-4">
-                  <div className="min-w-[800px]">
-                    <table className="w-full text-xs text-left text-slate-300">
-                      <thead className="bg-slate-950 text-slate-400 uppercase text-[10px]">
-                        <tr>
-                          <th className="p-3">অর্ডার আইডি & তারিখ</th>
-                          <th className="p-3">গ্রাহক বিবরণ</th>
-                          <th className="p-3">প্রডাক্ট বিবরণ</th>
-                          <th className="p-3">পেমেন্ট মাধ্যম</th>
-                          <th className="p-3">মূল্য</th>
-                          <th className="p-3">অবস্থা</th>
-                          <th className="p-3">অ্যাকশন</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-800">
-                        {orders.map((o) => (
-                          <tr key={o.id} className="hover:bg-slate-950/40">
-                            <td className="p-3">
-                              <span className="font-mono font-bold block text-white">{o.order_number}</span>
-                              <span className="text-[10px] text-slate-500">{new Date(o.created_at).toLocaleString('bn-BD')}</span>
-                            </td>
-                            <td className="p-3">
-                              <span className="block font-bold text-slate-200">{o.customer_name}</span>
-                              <span className="block font-mono text-[11px] text-slate-400">{o.customer_phone}</span>
-                              {o.player_id && (
-                                <span className="block text-[10px] bg-indigo-950/50 border border-indigo-800/40 text-indigo-300 rounded px-1 py-0.2 mt-0.5 w-max font-mono">
-                                  UID: {o.player_id}
-                                </span>
-                              )}
-                            </td>
-                            <td className="p-3">
-                              <span className="font-bold text-slate-200">{o.items_summary}</span>
-                            </td>
-                            <td className="p-3">
-                              <span className="uppercase font-extrabold text-[10px] text-amber-400 block">{o.payment_method}</span>
-                              <span className="font-mono text-[11px] text-slate-400 block">TrxID: {o.trx_id}</span>
-                            </td>
-                            <td className="p-3 font-bold text-white">৳{o.total_amount}</td>
-                            <td className="p-3">
-                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
-                                o.status === 'completed' 
-                                  ? 'bg-emerald-950/80 text-emerald-400 border border-emerald-800/50' 
-                                  : o.status === 'cancelled' 
-                                  ? 'bg-rose-950/80 text-rose-400 border border-rose-800/50' 
-                                  : 'bg-amber-950/80 text-amber-400 border border-amber-800/50 animate-pulse'
-                              }`}>
-                                {o.status === 'completed' ? 'ডেলিভার্ড' : o.status === 'cancelled' ? 'বাতিল' : 'অপেক্ষমান'}
-                              </span>
-                              {o.license_key_delivered && (
-                                <div className="text-[9px] bg-slate-950 text-slate-400 font-mono rounded px-1.5 py-0.5 mt-1 border border-slate-800">
-                                  KEY: {o.license_key_delivered}
-                                </div>
-                              )}
-                            </td>
-                            <td className="p-3 space-y-1">
-                              {o.status === 'pending' && (
-                                <div className="flex flex-col gap-1">
-                                  {o.order_type === 'topup' && (
-                                    <button
-                                      onClick={() => handleRechargeAPI(o)}
-                                      disabled={isRechargingId === o.id}
-                                      className="px-2 py-1 bg-blue-600 hover:bg-blue-500 text-white font-extrabold text-[10px] rounded cursor-pointer"
-                                    >
-                                      {isRechargingId === o.id ? 'API লোডিং...' : 'রিচার্জ API চালান'}
-                                    </button>
-                                  )}
-                                  <button
-                                    onClick={() => {
-                                      setDeliveringOrderId(o.id);
-                                      setLicenseKeyInput('');
-                                    }}
-                                    className="px-2 py-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[10px] rounded cursor-pointer"
-                                  >
-                                    ডেলিভারি (কী / ডেমো)
-                                  </button>
-                                  <button
-                                    onClick={async () => {
-                                      if (confirm('অর্ডারটি বাতিল করতে চান?')) {
-                                        await onUpdateOrderStatus(o.id, 'cancelled');
-                                      }
-                                    }}
-                                    className="px-2 py-1 bg-rose-900/60 hover:bg-rose-800 text-white font-bold text-[10px] rounded cursor-pointer"
-                                  >
-                                    বাতিল
-                                  </button>
-                                </div>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-
-              {onLoadMoreOrders && orders.length >= 50 && (
-                <div className="flex justify-center pt-4">
-                  <button
-                    onClick={async () => {
-                      setIsLoadingMore(true);
-                      const newOffset = ordersOffset + 50;
-                      await onLoadMoreOrders(newOffset);
-                      setOrdersOffset(newOffset);
-                      setIsLoadingMore(false);
-                    }}
-                    disabled={isLoadingMore}
-                    className="px-6 py-2 bg-slate-900 hover:bg-slate-800 text-slate-300 text-xs font-bold rounded-xl border border-slate-800 transition-all cursor-pointer flex items-center gap-2"
-                  >
-                    {isLoadingMore ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
-                    <span>আরো অর্ডার লোড করুন</span>
-                  </button>
-                </div>
-              )}
-            </div>
+            <MobileOrdersManager
+              orders={orders}
+              onUpdateOrderStatus={onUpdateOrderStatus}
+              onRechargeAPI={handleRechargeAPI}
+              isRechargingId={isRechargingId}
+              showToast={(msg) => alert(msg)}
+            />
           )}
 
           {/* TAB: ACCOUNTS BUY & SELL */}
@@ -2119,188 +1996,14 @@ if (!empty($sql)) {
 
           {/* TAB 5.1: WEB NOTICE & CONTACTS */}
           {activeTab === 'web_settings' && (
-            <div className="space-y-6 animate-in fade-in duration-200">
-              <h2 className="text-lg font-black text-white border-b border-slate-800 pb-2 flex items-center gap-2">
-                <SettingsIcon className="w-5 h-5 text-blue-500 animate-pulse" />
-                <span>ওয়েবসাইট কন্টেন্ট ও ব্যানার নোটিস</span>
-              </h2>
-
-              <div className="bg-slate-950 p-5 rounded-2xl border border-slate-800 space-y-4">
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <label className="text-slate-400 font-bold text-xs flex items-center gap-2">
-                      <Megaphone className="w-3.5 h-3.5 text-amber-400" />
-                      <span>টপ ব্যানার নোটিশ টেক্সট (বাংলা/ইংরেজি)</span>
-                    </label>
-                    <button 
-                      onClick={() => generateAIContent("Generate an engaging, attractive Bengali announcement notice for an online digital & gadgets store emphasizing fast delivery, 24/7 WhatsApp help, and secure bKash/Nagad payments", localSettings.notice_text || '', (val) => setLocalSettings(prev => ({ ...prev, notice_text: val })))}
-                      className="text-[10px] text-amber-400 hover:text-amber-300 font-bold flex items-center gap-1 cursor-pointer bg-amber-400/10 hover:bg-amber-400/20 px-2.5 py-0.5 rounded-full border border-amber-400/25 transition-all"
-                      disabled={!!isGenerating}
-                    >
-                      <Sparkles className="w-3 h-3" />
-                      {isGenerating ? "তৈরি হচ্ছে..." : "AI নোটিশ তৈরি"}
-                    </button>
-                  </div>
-
-                  <textarea
-                    rows={2}
-                    value={localSettings.notice_text}
-                    onChange={(e) => setLocalSettings({ ...localSettings, notice_text: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-white outline-none focus:border-blue-500 text-xs transition-all"
-                    placeholder="যেমন: ⚡ ইনস্ট্যান্ট ডেলিভারি! বিকাশ, নগদ বা রকেটে পেমেন্ট করুন। লাইভ সাপোর্ট ৯ AM - ১২ AM।"
-                  />
-
-                  {/* Quick Preset Templates */}
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="text-[10px] text-slate-500 font-bold mr-1">রেডিমেড টেমপ্লেট:</span>
-                    {[
-                      { label: '⚡ ইনস্ট্যান্ট ডেলিভারি', text: '⚡ ইনস্ট্যান্ট ডেলিভারি! বিকাশ, নগদ বা রকেটে পেমেন্ট করুন। লাইভ সাপোর্ট ৯ AM - ১২ AM।' },
-                      { label: '🎁 বিশেষ ডিসকাউন্ট', text: '🎁 ধামাকা অফার চলছে! চেকআউটে কুপন কোড ব্যবহার করে অতিরিক্ত ক্যাশব্যাক উপভোগ করুন।' },
-                      { label: '💎 টপ-আপ নোটিশ', text: '💎 ইউআইডি দিয়ে ৫-১৫ মিনিটে ফ্রি ফায়ার ডায়মন্ড ও পাবজি ইউসি ইনস্ট্যান্ট টপ-আপ!' },
-                      { label: '💬 লাইভ চ্যাট', text: '💬 যেকোনো তথ্যের জন্য সরাসরি আমাদের হোয়াটসঅ্যাপ লাইভ চ্যাটে যোগাযোগ করুন।' }
-                    ].map((preset, idx) => (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={() => setLocalSettings(prev => ({ ...prev, notice_text: preset.text }))}
-                        className="text-[10px] px-2 py-0.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-white rounded-lg transition-colors cursor-pointer"
-                      >
-                        {preset.label}
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* Live Notice Board Preview */}
-                  <div className="p-3 bg-slate-900/60 rounded-xl border border-slate-800/80 space-y-1.5">
-                    <div className="flex items-center justify-between text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-                      <span>রিয়েল-টাইম প্রিভিউ (গ্রাহকরা যেভাবে দেখবেন):</span>
-                      <span className="text-emerald-400 flex items-center gap-1">● লাইভ</span>
-                    </div>
-                    <div className="bg-slate-950 border border-slate-800 rounded-lg p-2 flex items-center justify-between gap-2 overflow-hidden text-xs">
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <span className="relative flex h-2 w-2 shrink-0">
-                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                          <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                        </span>
-                        <span className="px-1.5 py-0.5 bg-amber-400/10 text-amber-400 border border-amber-400/30 rounded-full font-black text-[9px] uppercase">
-                          নোটিশ
-                        </span>
-                      </div>
-                      <div className="flex-1 truncate text-slate-300 text-[11px] font-medium">
-                        {localSettings.notice_text || 'কোনো নোটিশ টেক্সট নেই'}
-                      </div>
-                      <div className="shrink-0 px-2 py-0.5 bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 rounded-full text-[10px] font-bold">
-                        WhatsApp
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1.5 text-xs">
-                    <label className="text-slate-400 font-bold">হোয়াটসঅ্যাপ হেল্পলাইন নম্বর (যোগাযোগের জন্য)</label>
-                    <input
-                      type="text"
-                      value={localSettings.whatsapp_number}
-                      onChange={(e) => setLocalSettings({ ...localSettings, whatsapp_number: e.target.value })}
-                      className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-white outline-none font-mono focus:border-blue-500 text-xs"
-                    />
-                    <p className="text-[9px] text-slate-500">গ্রাহকরা লাইভ চ্যাটের জন্য এই নম্বরে সরাসরি রিডাইরেক্ট হবেন।</p>
-                  </div>
-
-                  <div className="space-y-1.5 text-xs">
-                    <label className="text-slate-400 font-bold">হেল্পলাইন সরাসরি কল নম্বর</label>
-                    <input
-                      type="text"
-                      value={localSettings.help_phone || ''}
-                      onChange={(e) => setLocalSettings({ ...localSettings, help_phone: e.target.value })}
-                      className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-white outline-none font-mono focus:border-blue-500 text-xs"
-                    />
-                    <p className="text-[9px] text-slate-500">মেইনটেন্যান্স বা সমস্যাজনিত কারণে গ্রাহকদের সাথে কথা বলার নম্বর।</p>
-                  </div>
-                </div>
-
-                {/* Footer Customization Section */}
-                <div className="bg-slate-950 p-5 rounded-2xl border border-slate-800 space-y-4 mt-6">
-                  <h3 className="font-extrabold text-xs text-white uppercase tracking-wider flex items-center gap-1.5">
-                    <span className="w-1.5 h-3.5 bg-blue-500 rounded-xs" />
-                    <span>ফুটার ও ব্র্যান্ডিং কন্ট্রোল (Footer & Branding Content)</span>
-                  </h3>
-                  <p className="text-[10px] text-slate-400 mb-2">ওয়েবসাইটের নিচের ফুটার সেকশনের টাইটেল, বিবরণ, কপিরাইট ও পেমেন্ট মেথড টেক্সট পরিবর্তন করুন।</p>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-                    <div className="space-y-1.5">
-                      <label className="text-slate-400 font-bold">ফুটার টাইটেল / নাম (Footer Title)</label>
-                      <input
-                        type="text"
-                        value={localSettings.footer_title || ''}
-                        onChange={(e) => setLocalSettings({ ...localSettings, footer_title: e.target.value })}
-                        className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-white outline-none focus:border-blue-500 text-xs"
-                      />
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="text-slate-400 font-bold">কপিরাইট নোটিশ (Copyright Text)</label>
-                      <input
-                        type="text"
-                        value={localSettings.footer_copyright || ''}
-                        onChange={(e) => setLocalSettings({ ...localSettings, footer_copyright: e.target.value })}
-                        className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-white outline-none focus:border-blue-500 text-xs"
-                      />
-                    </div>
-
-                    <div className="md:col-span-2 space-y-1.5">
-                      <label className="text-slate-400 font-bold">ফুটার বিবরণ (Footer Description)</label>
-                      <textarea
-                        rows={2}
-                        value={localSettings.footer_description || ''}
-                        onChange={(e) => setLocalSettings({ ...localSettings, footer_description: e.target.value })}
-                        className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-white outline-none focus:border-blue-500 text-xs"
-                      />
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="text-slate-400 font-bold">পেমেন্ট মেথড লিস্ট (প্রতি লাইনে একটি)</label>
-                      <textarea
-                        rows={3}
-                        value={localSettings.footer_payment_methods || ''}
-                        onChange={(e) => setLocalSettings({ ...localSettings, footer_payment_methods: e.target.value })}
-                        className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-white outline-none font-mono focus:border-blue-500 text-xs"
-                      />
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="text-slate-400 font-bold">সহায়তা ও হেল্প টেক্সট (Help & Support Text)</label>
-                      <textarea
-                        rows={3}
-                        value={localSettings.footer_help_text || ''}
-                        onChange={(e) => setLocalSettings({ ...localSettings, footer_help_text: e.target.value })}
-                        className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-white outline-none focus:border-blue-500 text-xs"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="pt-2">
-                  <button
-                    onClick={() => {
-                      onSaveSettings(localSettings);
-                      setSettingsSavedToast(true);
-                      setTimeout(() => setSettingsSavedToast(false), 3000);
-                    }}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-extrabold text-xs rounded-xl cursor-pointer shadow-md transition-colors"
-                  >
-                    ওয়েব সেটিংস সেভ করুন
-                  </button>
-                  {settingsSavedToast && (
-                    <span className="ml-3 text-emerald-400 font-bold text-xs inline-flex items-center gap-1 animate-pulse">
-                      <CheckCircle2 className="w-4 h-4" />
-                      <span>সেটিংস সফলভাবে সেভ হয়েছে!</span>
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
+            <MobileWebSettingsManager
+              settings={localSettings}
+              onSaveSettings={(updated) => {
+                setLocalSettings(updated);
+                onSaveSettings(updated);
+              }}
+              showToast={(msg) => alert(msg)}
+            />
           )}
 
           {/* TAB 5.2: PAYMENT GATEWAYS (MANUAL & ZINIPAY) */}
@@ -2853,1078 +2556,111 @@ if (!empty($sql)) {
 
           {/* TAB 7: CATEGORIES */}
           {activeTab === 'categories' && (
-            <div className="space-y-6">
-              <h2 className="text-lg font-black text-white border-b border-slate-800 pb-2 flex items-center gap-2">
-                <Inbox className="w-5 h-5 text-blue-400" />
-                <span>ক্যাটাগরি ও সাব-ক্যাটাগরি ম্যানেজমেন্ট</span>
-              </h2>
-
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                
-                {/* Left Panel: Primary Categories */}
-                <div className="bg-slate-950 p-4 sm:p-5 rounded-3xl border border-slate-800 space-y-4">
-                  <div>
-                    <h3 className="font-extrabold text-xs text-white uppercase tracking-wider flex items-center gap-1.5">
-                      <span className="w-1.5 h-3.5 bg-blue-500 rounded-xs" />
-                      <span>১. প্রধান ক্যাটালগ ক্যাটাগরি তালিকা</span>
-                    </h3>
-                    <p className="text-[10px] text-slate-400 mt-1">স্টোরের প্রধান প্রোডাক্ট ফিল্টারিং এবং ক্যাটালগের জন্য ক্যাটাগরি নিয়ন্ত্রণ করুন।</p>
-                  </div>
-
-                  {/* Current categories table listing */}
-                  <div className="border border-slate-800 rounded-lg overflow-hidden bg-slate-900/60 max-h-52 overflow-y-auto">
-                    <table className="w-full text-left font-sans text-[11px] text-slate-300">
-                      <thead className="bg-slate-950 text-[10px] uppercase font-bold text-slate-500">
-                        <tr>
-                          <th className="p-2">ক্যাটাগরি আইডি (ID)</th>
-                          <th className="p-2">ক্যাটাগরি নাম (Label)</th>
-                          <th className="p-2 text-right">অ্যাকশন</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-800">
-                        {(localSettings.custom_categories || [
-                          { id: 'digital', label: 'Digital Keys' },
-                          { id: 'physical', label: 'Physical Gadgets' }
-                        ]).map((cat) => (
-                          <tr key={cat.id} className="hover:bg-slate-900/30">
-                            <td className="p-2 font-mono text-blue-400">{cat.id}</td>
-                            <td className="p-2 text-white font-bold">{cat.label}</td>
-                            <td className="p-2 text-right">
-                              <button
-                                type="button"
-                                onClick={async () => {
-                                  const current = localSettings.custom_categories || [
-                                    { id: 'digital', label: 'Digital Keys' },
-                                    { id: 'physical', label: 'Physical Gadgets' }
-                                  ];
-                                  if (current.length <= 1) {
-                                    alert('কমপক্ষে একটি ক্যাটাগরি অবশ্যই স্টোরে থাকতে হবে!');
-                                    return;
-                                  }
-                                  if (confirm(`"${cat.label}" ক্যাটাগরি রিমুভ করতে চান?`)) {
-                                    await onDeleteCategory(cat.id);
-                                    alert('ক্যাটাগরি রিমুভ করা হয়েছে!');
-                                  }
-                                }}
-                                className="text-rose-400 hover:text-rose-300 text-[10px] font-bold p-1 hover:bg-rose-950/30 rounded cursor-pointer"
-                              >
-                                রিমুভ
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  {/* Add Category Form inputs */}
-                  <div className="p-3 bg-slate-900/40 rounded-xl border border-slate-800/80 space-y-3">
-                    <span className="font-extrabold text-[10px] text-slate-400 block uppercase">প্রধান ক্যাটাগরি যুক্ত করুন:</span>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                      <div className="space-y-1">
-                        <label className="text-slate-500 text-[9px] font-bold">ক্যাটাগরি আইডি (ID - English only)</label>
-                        <input
-                          type="text"
-                          placeholder="giftcard"
-                          value={newCatId}
-                          onChange={(e) => setNewCatId(e.target.value.toLowerCase().replace(/[^a-z0-9]/g, ''))}
-                          className="w-full px-2.5 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-white font-mono text-[11px] outline-none"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-slate-500 text-[9px] font-bold">ক্যাটাগরি নাম (Label - বাংলা/ইংরেজি)</label>
-                        <input
-                          type="text"
-                          placeholder="গিফট কার্ডস"
-                          value={newCatLabel}
-                          onChange={(e) => setNewCatLabel(e.target.value)}
-                          className="w-full px-2.5 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-white text-[11px] outline-none"
-                        />
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        if (!newCatId || !newCatLabel) {
-                          alert('দয়া করে আইডি এবং লেবেল উভয়ই পূরণ করুন!');
-                          return;
-                        }
-                        const current = localSettings.custom_categories || [];
-                        if (current.some(c => c.id === newCatId)) {
-                          alert('এই ক্যাটাগরি আইডিটি ইতিমধ্যে ব্যবহৃত হয়েছে!');
-                          return;
-                        }
-                        await onSaveCategory({ id: newCatId, label: newCatLabel });
-                        setNewCatId('');
-                        setNewCatLabel('');
-                        alert('ক্যাটাগরি সফলভাবে যুক্ত করা হয়েছে!');
-                      }}
-                      className="w-full py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-[11px] font-bold cursor-pointer transition-colors shadow-md"
-                    >
-                      ক্যাটাগরি যুক্ত করুন
-                    </button>
-                  </div>
-                </div>
-
-                {/* Right Panel: Sub-Categories */}
-                <div className="bg-slate-950 p-4 sm:p-5 rounded-3xl border border-slate-800 space-y-4">
-                  <div>
-                    <h3 className="font-extrabold text-xs text-white uppercase tracking-wider flex items-center gap-1.5">
-                      <span className="w-1.5 h-3.5 bg-purple-500 rounded-xs" />
-                      <span>২. সাব-ক্যাটাগরি তালিকা (Nested Sub-Categories)</span>
-                    </h3>
-                    <p className="text-[10px] text-slate-400 mt-1">ক্যাটাগরির ভেতরের অতিরিক্ত বিভাজন (যেমন: Digital Keys ক্যাটাগরির ভেতর Free Fire বা PUBG)।</p>
-                  </div>
-
-                  {/* Current subcategories table listing */}
-                  <div className="border border-slate-800 rounded-lg overflow-hidden bg-slate-900/60 max-h-52 overflow-y-auto">
-                    <table className="w-full text-left font-sans text-[11px] text-slate-300">
-                      <thead className="bg-slate-950 text-[10px] uppercase font-bold text-slate-500">
-                        <tr>
-                          <th className="p-2">সাব-ক্যাটাগরি ID</th>
-                          <th className="p-2">সাব-ক্যাটাগরি নাম</th>
-                          <th className="p-2">প্যারেন্ট ক্যাটাগরি ID</th>
-                          <th className="p-2 text-right">অ্যাকশন</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-800">
-                        {(localSettings.sub_categories || []).length > 0 ? (
-                          (localSettings.sub_categories || []).map((sub) => (
-                            <tr key={sub.id} className="hover:bg-slate-900/30">
-                              <td className="p-2 font-mono text-purple-400">{sub.id}</td>
-                              <td className="p-2 text-white font-bold">{sub.label}</td>
-                              <td className="p-2 text-slate-400 font-mono text-[10px]">{sub.parent_category_id}</td>
-                              <td className="p-2 text-right">
-                                <button
-                                  type="button"
-                                  onClick={async () => {
-                                    if (confirm(`"${sub.label}" সাব-ক্যাটাগরি রিমুভ করতে চান?`)) {
-                                      await onDeleteSubCategory(sub.id);
-                                      alert('সাব-ক্যাটাগরি রিমুভ করা হয়েছে!');
-                                    }
-                                  }}
-                                  className="text-rose-400 hover:text-rose-300 text-[10px] font-bold p-1 hover:bg-rose-950/30 rounded cursor-pointer"
-                                >
-                                  রিমুভ
-                                </button>
-                              </td>
-                            </tr>
-                          ))
-                        ) : (
-                          <tr>
-                            <td colSpan={4} className="p-4 text-center text-slate-500 italic">কোনো সাব-ক্যাটাগরি পাওয়া যায়নি! নিচের ফর্ম থেকে যুক্ত করুন।</td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  {/* Add Sub Category Form inputs */}
-                  <div className="p-3 bg-slate-900/40 rounded-xl border border-slate-800/80 space-y-3">
-                    <span className="font-extrabold text-[10px] text-slate-400 block uppercase">সাব-ক্যাটাগরি যুক্ত করুন:</span>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
-                      <div className="space-y-1">
-                        <label className="text-slate-500 text-[9px] font-bold">প্যারেন্ট ক্যাটাগরি *</label>
-                        <select
-                          value={newSubParentId}
-                          onChange={(e) => setNewSubParentId(e.target.value)}
-                          className="w-full px-2 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-white text-[11px] outline-none animate-none"
-                        >
-                          <option value="">নির্বাচন করুন</option>
-                          {(localSettings.custom_categories || [
-                            { id: 'digital', label: 'Digital Keys' },
-                            { id: 'physical', label: 'Physical Gadgets' }
-                          ]).map(cat => (
-                            <option key={cat.id} value={cat.id}>{cat.label}</option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <div className="space-y-1">
-                        <label className="text-slate-500 text-[9px] font-bold">সাব-ক্যাটাগরি ID (English Only)</label>
-                        <input
-                          type="text"
-                          placeholder="freefire_diamonds"
-                          value={newSubId}
-                          onChange={(e) => setNewSubId(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
-                          className="w-full px-2.5 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-white font-mono text-[11px] outline-none"
-                        />
-                      </div>
-
-                      <div className="space-y-1">
-                        <label className="text-slate-500 text-[9px] font-bold">সাব-ক্যাটাগরি নাম (Label)</label>
-                        <input
-                          type="text"
-                          placeholder="ফ্রি ফায়ার ডায়মন্ড"
-                          value={newSubLabel}
-                          onChange={(e) => setNewSubLabel(e.target.value)}
-                          className="w-full px-2.5 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-white text-[11px] outline-none"
-                        />
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        if (!newSubParentId || !newSubId || !newSubLabel) {
-                          alert('দয়া করে প্যারেন্ট ক্যাটাগরি, সাব-ক্যাটাগরি আইডি এবং লেবেল সব সঠিক উপায়ে পূরণ করুন!');
-                          return;
-                        }
-                        const current = localSettings.sub_categories || [];
-                        if (current.some(s => s.id === newSubId)) {
-                          alert('এই সাব-ক্যাটাগরি আইডিটি ইতিমধ্যে ব্যবহৃত হয়েছে!');
-                          return;
-                        }
-                        const fresh = {
-                          id: newSubId,
-                          label: newSubLabel,
-                          parent_category_id: newSubParentId
-                        };
-                        await onSaveSubCategory(fresh);
-                        setNewSubId('');
-                        setNewSubLabel('');
-                        setNewSubParentId('');
-                        alert('সাব-ক্যাটাগরি সফলভাবে যুক্ত করা হয়েছে!');
-                      }}
-                      className="w-full py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-[11px] font-bold cursor-pointer transition-colors shadow-md"
-                    >
-                      সাব-ক্যাটাগরি যুক্ত করুন
-                    </button>
-                  </div>
-                </div>
-
-              </div>
-            </div>
+            <MobileCategoriesManager
+              settings={localSettings}
+              onSaveCategory={onSaveCategory}
+              onDeleteCategory={onDeleteCategory}
+              onSaveSubCategory={onSaveSubCategory}
+              onDeleteSubCategory={onDeleteSubCategory}
+              showToast={(msg) => alert(msg)}
+            />
           )}
-
           {/* TAB 8: COUPONS */}
           {activeTab === 'coupons' && (
-            <div className="space-y-6">
-              <h2 className="text-lg font-black text-white border-b border-slate-800 pb-2 flex items-center gap-2">
-                <Tag className="w-5 h-5 text-blue-400" />
-                <span>ডিসকাউন্ট কুপন ম্যানেজমেন্ট (Discount Coupon Codes)</span>
-              </h2>
-              
-              <div className="bg-slate-950 p-5 rounded-2xl border border-slate-800 space-y-4">
-                <span className="font-bold text-white text-xs block mb-1">সক্রিয় কুপন কোড তালিকা</span>
-                <p className="text-[10px] text-slate-400 mb-2">গ্রাহকদের জন্য প্রোমোশনাল অফার ও কুপন কোড সেটআপ ও মনিটর করুন।</p>
-                
-                {/* Current coupons table */}
-                <div className="space-y-2 mt-2">
-                  <div className="border border-slate-800 rounded-lg overflow-hidden bg-slate-900/60 max-h-60 overflow-y-auto">
-                    <table className="w-full text-left font-sans text-[11px] text-slate-300">
-                      <thead className="bg-slate-950 text-[10px] uppercase font-bold text-slate-500">
-                        <tr>
-                          <th className="p-2">কুপন কোড</th>
-                          <th className="p-2">ডিসকাউন্ট ধরন</th>
-                          <th className="p-2">ডিসকাউন্ট পরিমাণ</th>
-                          <th className="p-2">কমপক্ষে অর্ডার</th>
-                          <th className="p-2">অবস্থা</th>
-                          <th className="p-2 text-right">অ্যাকশন</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-800">
-                        {coupons.map((coupon) => (
-                          <tr key={coupon.code} className="hover:bg-slate-900/30">
-                            <td className="p-2 font-mono text-blue-400 font-extrabold">{coupon.code}</td>
-                            <td className="p-2 text-slate-300 capitalize">{coupon.discount_type === 'percent' ? 'শতকরা (%)' : 'ফ্ল্যাট (BDT)'}</td>
-                            <td className="p-2 font-mono text-white font-bold">
-                              {coupon.discount_type === 'percent' ? `${coupon.discount_value}%` : `৳${coupon.discount_value}`}
-                            </td>
-                            <td className="p-2 font-mono text-slate-400">৳{coupon.min_order_amount ?? 0}</td>
-                            <td className="p-2">
-                              <button
-                                type="button"
-                                onClick={async () => {
-                                  const updated = coupons.map(c => c.code === coupon.code ? { ...c, active: !c.active } : c);
-                                  await onSaveCoupons(updated);
-                                }}
-                                className={`px-1.5 py-0.5 rounded text-[9px] font-bold cursor-pointer ${
-                                  coupon.active ? 'bg-emerald-950 text-emerald-400 border border-emerald-800/40' : 'bg-slate-800 text-slate-400'
-                                }`}
-                              >
-                                {coupon.active ? 'Saktif' : 'Deactive'}
-                              </button>
-                            </td>
-                            <td className="p-2 text-right">
-                              <button
-                                type="button"
-                                onClick={async () => {
-                                  if (confirm(`"${coupon.code}" কুপনটি ডিলিট করতে চান?`)) {
-                                    await onDeleteCoupon(coupon.code);
-                                  }
-                                }}
-                                className="text-rose-400 hover:text-rose-300 text-[10px] font-bold p-1 hover:bg-rose-950/30 rounded cursor-pointer"
-                              >
-                                ডিলিট
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  {/* Add Coupon Inputs */}
-                  <div className="flex flex-col sm:flex-row gap-2 mt-3 p-3 bg-slate-900/40 rounded-xl border border-slate-800/80 items-end">
-                    <div className="flex-1 space-y-1 w-full">
-                      <label className="text-slate-500 text-[9px] font-bold block">নতুন কুপন কোড (ইংরেজি বড় হাত)</label>
-                      <input
-                        type="text"
-                        placeholder="যেমন: VELORAL50"
-                        value={newCouponCode}
-                        onChange={(e) => setNewCouponCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
-                        className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-white font-mono text-[11px] outline-none"
-                      />
-                    </div>
-
-                    <div className="flex-1 space-y-1 w-full">
-                      <label className="text-slate-500 text-[9px] font-bold block">ডিসকাউন্ট টাইপ</label>
-                      <select
-                        value={newCouponType}
-                        onChange={(e) => setNewCouponType(e.target.value as 'percent' | 'flat')}
-                        className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-white text-[11px] outline-none"
-                      >
-                        <option value="flat">ফ্ল্যাট ক্যাশব্যাক (BDT)</option>
-                        <option value="percent">শতকরা ডিসকাউন্ট (%)</option>
-                      </select>
-                    </div>
-
-                    <div className="flex-1 space-y-1 w-full font-mono">
-                      <label className="text-slate-500 text-[9px] font-bold block">ডিসকাউন্ট পরিমাণ</label>
-                      <input
-                        type="number"
-                        value={newCouponValue || ''}
-                        onChange={(e) => setNewCouponValue(Number(e.target.value))}
-                        placeholder="যেমন: ৫০"
-                        className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-white text-[11px] outline-none"
-                      />
-                    </div>
-
-                    <div className="flex-1 space-y-1 w-full font-mono">
-                      <label className="text-slate-500 text-[9px] font-bold block">কমপক্ষে অর্ডার পরিমাণ (BDT)</label>
-                      <input
-                        type="number"
-                        value={newCouponMin || ''}
-                        onChange={(e) => setNewCouponMin(Number(e.target.value))}
-                        placeholder="যেমন: ৫০০"
-                        className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-white text-[11px] outline-none"
-                      />
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        if (!newCouponCode.trim() || !newCouponValue) {
-                          alert('দয়া করে কোড এবং ডিসকাউন্টের পরিমাণ সঠিক উপায়ে পূরণ করুন!');
-                          return;
-                        }
-                        if (coupons.some(c => c.code === newCouponCode)) {
-                          alert('এই কুপন কোডটি ইতিমধ্যে ব্যবহৃত হয়েছে!');
-                          return;
-                        }
-                        const fresh: Coupon = {
-                          code: newCouponCode.trim().toUpperCase(),
-                          discount_type: newCouponType,
-                          discount_value: newCouponValue,
-                          min_order_amount: newCouponMin || undefined,
-                          active: true
-                        };
-                        const updated = [...coupons, fresh];
-                        await onSaveCoupons(updated);
-                        setNewCouponCode('');
-                        setNewCouponValue(0);
-                        setNewCouponMin(0);
-                        alert('কুপন সফলভাবে সক্রিয় করা হয়েছে!');
-                      }}
-                      className="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-[11px] font-bold cursor-pointer transition-colors shrink-0 w-full sm:w-auto"
-                    >
-                      কুপন যুক্ত করুন
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <MobileCouponsManager
+              coupons={coupons}
+              onSaveCoupons={onSaveCoupons}
+              onDeleteCoupon={onDeleteCoupon}
+              showToast={(msg) => alert(msg)}
+            />
           )}
 
           {/* TAB: EVENTS & OFFER POPUP */}
           {activeTab === 'events' && (
-            <div className="space-y-6 animate-in fade-in duration-200">
-              <h2 className="text-lg font-black text-white border-b border-slate-800 pb-2 flex items-center gap-2">
-                <Calendar className="w-5 h-5 text-blue-500" />
-                <span>ইভেন্ট ও অফার পপআপ ম্যানেজমেন্ট</span>
-              </h2>
-
-              <div className="bg-slate-950 p-5 rounded-2xl border border-slate-800 space-y-5">
-                <div>
-                  <h3 className="text-sm font-bold text-white mb-4">নতুন ইভেন্ট তৈরি করুন</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <label className="text-slate-400 font-bold text-[10px] uppercase">ইভেন্ট টাইটেল *</label>
-                        <button 
-                          onClick={() => generateAIContent("Generate a catchy title for a promotional event", "Store promotions", setNewEventTitle)}
-                          className="text-[10px] text-blue-400 hover:text-blue-300 font-bold flex items-center gap-1"
-                          disabled={!!isGenerating}
-                        >
-                          <Sparkles className="w-3 h-3" />
-                          {isGenerating ? "Generating..." : "AI"}
-                        </button>
-                      </div>
-                      <input
-                        type="text"
-                        value={newEventTitle}
-                        onChange={(e) => setNewEventTitle(e.target.value)}
-                        placeholder="যেমন: ধামাকা ঈদ অফার!"
-                        className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-white outline-none focus:border-blue-500 text-xs"
-                      />
-                    </div>
-                    <div className="space-y-1.5 md:col-span-1">
-                      <div className="flex items-center justify-between">
-                        <label className="text-slate-400 font-bold text-[10px] uppercase">ইভেন্ট ইমেজ (ঐচ্ছিক)</label>
-                        <div className="flex bg-slate-900 p-0.5 rounded-lg border border-slate-800 scale-90 origin-right">
-                          <button
-                            onClick={() => setEventImageUploadMode('upload')}
-                            className={`px-2 py-0.5 rounded-md text-[8px] font-black transition-all ${eventImageUploadMode === 'upload' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-slate-300'}`}
-                          >
-                            UPLOAD
-                          </button>
-                          <button
-                            onClick={() => setEventImageUploadMode('url')}
-                            className={`px-2 py-0.5 rounded-md text-[8px] font-black transition-all ${eventImageUploadMode === 'url' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-slate-300'}`}
-                          >
-                            URL
-                          </button>
-                        </div>
-                      </div>
-
-                      {eventImageUploadMode === 'upload' ? (
-                        <div className="relative group">
-                          <input
-                            key={eventFileInputKey}
-                            type="file"
-                            accept="image/*"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file) {
-                                const reader = new FileReader();
-                                reader.onloadend = () => {
-                                  const base64 = reader.result as string;
-                                  setNewEventImageUrl(base64);
-                                };
-                                reader.readAsDataURL(file);
-                              }
-                            }}
-                            className="hidden"
-                            id="event-image-upload"
-                          />
-                          <label
-                            htmlFor="event-image-upload"
-                            className="flex flex-col items-center justify-center w-full h-10 border border-dashed border-slate-800 rounded-xl bg-slate-900/50 hover:bg-slate-900 hover:border-blue-500/50 transition-all cursor-pointer overflow-hidden group"
-                          >
-                            {newEventImageUrl && eventImageUploadMode === 'upload' ? (
-                              <div className="flex items-center gap-2 px-3 w-full h-full bg-slate-900">
-                                <img src={newEventImageUrl} alt="Preview" className="w-6 h-6 rounded object-cover border border-slate-700" />
-                                <span className="text-[10px] text-slate-300 font-bold truncate flex-1">Image selected</span>
-                                <button
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    setNewEventImageUrl('');
-                                    setEventFileInputKey(prev => prev + 1);
-                                  }}
-                                  className="p-1 hover:bg-rose-500/20 text-rose-400 rounded-md transition-colors"
-                                >
-                                  <X className="w-3 h-3" />
-                                </button>
-                              </div>
-                            ) : (
-                              <div className="flex items-center gap-2">
-                                <Upload className="w-3 h-3 text-slate-500 group-hover:text-blue-400 transition-colors" />
-                                <span className="text-[10px] text-slate-500 group-hover:text-slate-300">ডিভাইস থেকে আপলোড</span>
-                              </div>
-                            )}
-                          </label>
-                        </div>
-                      ) : (
-                        <div className="relative">
-                          <input
-                            type="text"
-                            value={newEventImageUrl}
-                            onChange={(e) => setNewEventImageUrl(e.target.value)}
-                            placeholder="ইমেজ লিংক দিন..."
-                            className="w-full pl-8 pr-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-white outline-none focus:border-blue-500 text-xs"
-                          />
-                          <Link className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-slate-500" />
-                        </div>
-                      )}
-                    </div>
-                    <div className="md:col-span-2 space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <label className="text-slate-400 font-bold text-[10px] uppercase">বিস্তারিত বর্ণনা *</label>
-                        <button 
-                          onClick={() => generateAIContent(`Write a short promotional description for the event: ${newEventTitle}`, "Promotional event", setNewEventDesc)}
-                          className="text-[10px] text-blue-400 hover:text-blue-300 font-bold flex items-center gap-1"
-                          disabled={!!isGenerating}
-                        >
-                          <Sparkles className="w-3 h-3" />
-                          {isGenerating ? "Generating..." : "AI"}
-                        </button>
-                      </div>
-                      <textarea
-                        rows={2}
-                        value={newEventDesc}
-                        onChange={(e) => setNewEventDesc(e.target.value)}
-                        placeholder="অফার সম্পর্কে বিস্তারিত লিখুন..."
-                        className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-white outline-none focus:border-blue-500 text-xs"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-slate-400 font-bold text-[10px] uppercase">বাটন টেক্সট (CTA Label)</label>
-                      <input
-                        type="text"
-                        value={newEventCtaLabel}
-                        onChange={(e) => setNewEventCtaLabel(e.target.value)}
-                        placeholder="যেমন: এখনই কিনুন"
-                        className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-white outline-none focus:border-blue-500 text-xs"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-slate-400 font-bold text-[10px] uppercase">বাটন লিংক (CTA Link)</label>
-                      <input
-                        type="text"
-                        value={newEventCtaLink}
-                        onChange={(e) => setNewEventCtaLink(e.target.value)}
-                        placeholder="https://..."
-                        className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-white outline-none focus:border-blue-500 text-xs"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="mt-4 flex items-center gap-3">
-                    <label className="flex items-center gap-2 cursor-pointer group">
-                      <input
-                        type="checkbox"
-                        checked={newEventPopup}
-                        onChange={(e) => setNewEventPopup(e.target.checked)}
-                        className="w-4 h-4 rounded border-slate-700 bg-slate-900 text-blue-600 focus:ring-blue-500"
-                      />
-                      <span className="text-xs font-bold text-slate-300 group-hover:text-white transition-colors">পপআপ হিসেবে দেখান</span>
-                    </label>
-
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        if (!newEventTitle.trim() || !newEventDesc.trim()) {
-                          alert('টাইটেল এবং বর্ণনা আবশ্যিক!');
-                          return;
-                        }
-
-                        const eventObj: StoreEvent = {
-                          id: `evt-${Date.now()}`,
-                          title: newEventTitle.trim(),
-                          description: newEventDesc.trim(),
-                          image_url: newEventImageUrl || undefined,
-                          cta_label: newEventCtaLabel.trim() || undefined,
-                          cta_link: newEventCtaLink.trim() || undefined,
-                          active: true,
-                          show_as_popup: newEventPopup,
-                          created_at: new Date().toISOString()
-                        };
-                        
-                        // Optimistically update UI immediately for zero-delay instant feedback
-                        const currentEvents = localSettings.events || [];
-                        const updatedEvents = [eventObj, ...currentEvents];
-                        const updatedSettings = {
-                          ...localSettings,
-                          events: updatedEvents,
-                          active_event_popup_id: (eventObj.show_as_popup && eventObj.active) ? eventObj.id : localSettings.active_event_popup_id
-                        };
-                        
-                        setLocalSettings(updatedSettings);
-
-                        // Clear form immediately
-                        setNewEventTitle('');
-                        setNewEventDesc('');
-                        setNewEventImageUrl('');
-                        setNewEventCtaLabel('');
-                        setNewEventCtaLink('');
-
-                        try {
-                          await onAddEvent(eventObj);
-                          if (eventObj.show_as_popup && eventObj.active) {
-                            await onSaveSettings(updatedSettings);
-                          }
-                          alert('ইভেন্টটি সফলভাবে তৈরি ও পাবলিশ করা হয়েছে!');
-                        } catch (e) {
-                          console.error('Event creation error:', e);
-                        }
-                      }}
-                      className="ml-auto px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white font-extrabold text-xs rounded-xl shadow-lg transition-all cursor-pointer"
-                    >
-                      ইভেন্ট পাবলিশ করুন
-                    </button>
-                  </div>
-                </div>
-
-                <div className="pt-4 border-t border-slate-800">
-                  <h3 className="text-sm font-bold text-white mb-3">বিদ্যমান ইভেন্টসমূহ ({(localSettings.events || []).length})</h3>
-                  <div className="space-y-3">
-                    {(localSettings.events || []).length === 0 && (
-                      <p className="text-xs text-slate-500 italic py-4 text-center bg-slate-900/30 rounded-xl border border-dashed border-slate-800">কোনো ইভেন্ট খুঁজে পাওয়া যায়নি।</p>
-                    )}
-                    {localSettings.events?.map((evt) => (
-                      <div key={evt.id} className="p-3 bg-slate-900/60 border border-slate-800 rounded-xl flex items-center justify-between gap-4">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-0.5">
-                            <h4 className="font-bold text-white text-xs truncate">{evt.title}</h4>
-                            {evt.show_as_popup && (
-                              <span className="text-[8px] bg-blue-500/20 text-blue-400 border border-blue-500/30 px-1.5 py-0.2 rounded font-bold uppercase">POPUP</span>
-                            )}
-                            {localSettings.active_event_popup_id === evt.id && (
-                              <span className="text-[8px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.2 rounded font-bold uppercase">ACTIVE POPUP</span>
-                            )}
-                          </div>
-                          <p className="text-[10px] text-slate-400 line-clamp-1">{evt.description}</p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={async () => {
-                              const newActiveStatus = !evt.active;
-                              await onUpdateEvent(evt.id, { active: newActiveStatus });
-                              
-                              // Handle popup ID settings
-                              if (newActiveStatus && evt.show_as_popup) {
-                                // If activating a popup, set it as the active one
-                                const updated = { ...localSettings, active_event_popup_id: evt.id };
-                                setLocalSettings(updated);
-                                await onSaveSettings(updated);
-                              } else if (!newActiveStatus && localSettings.active_event_popup_id === evt.id) {
-                                // If deactivating the current active popup, clear it
-                                const updated = { ...localSettings, active_event_popup_id: null };
-                                setLocalSettings(updated);
-                                await onSaveSettings(updated);
-                              }
-                            }}
-                            className={`px-2 py-1 rounded text-[9px] font-bold transition-all cursor-pointer ${
-                              evt.active
-                                ? 'bg-emerald-600 text-white'
-                                : 'bg-slate-800 text-slate-400 hover:text-white'
-                            }`}
-                          >
-                            {evt.active ? 'অ্যাক্টিভ' : 'নিষ্ক্রিয়'}
-                          </button>
-
-                          <button
-                            onClick={async () => {
-                              const newPopupStatus = !evt.show_as_popup;
-                              await onUpdateEvent(evt.id, { show_as_popup: newPopupStatus });
-                              
-                              if (newPopupStatus && evt.active) {
-                                // If making it a popup and it's already active, set it as current popup
-                                const updated = { ...localSettings, active_event_popup_id: evt.id };
-                                setLocalSettings(updated);
-                                await onSaveSettings(updated);
-                              } else if (!newPopupStatus && localSettings.active_event_popup_id === evt.id) {
-                                // If removing popup status from current active popup, clear ID
-                                const updated = { ...localSettings, active_event_popup_id: null };
-                                setLocalSettings(updated);
-                                await onSaveSettings(updated);
-                              }
-                            }}
-                            className={`px-2 py-1 rounded text-[9px] font-bold transition-all cursor-pointer ${
-                              evt.show_as_popup
-                                ? 'bg-blue-600 text-white'
-                                : 'bg-slate-800 text-slate-400 hover:text-white'
-                            }`}
-                          >
-                            {evt.show_as_popup ? 'পপআপ অন' : 'পপআপ অফ'}
-                          </button>
-                          
-                          {deletingEventId === evt.id ? (
-                            <div className="flex items-center gap-1.5 animate-in fade-in duration-200">
-                              <button
-                                type="button"
-                                onClick={async (e) => {
-                                  e.stopPropagation();
-                                  try {
-                                    await onDeleteEvent(evt.id);
-                                    const updatedEvents = (localSettings.events || []).filter(e => e.id !== evt.id);
-                                    const updated = { 
-                                      ...localSettings, 
-                                      events: updatedEvents,
-                                      active_event_popup_id: localSettings.active_event_popup_id === evt.id ? null : localSettings.active_event_popup_id 
-                                    };
-                                    setLocalSettings(updated);
-                                    await onSaveSettings(updated);
-                                    setDeletingEventId(null);
-                                  } catch (err) {
-                                    console.error('Failed to delete event:', err);
-                                    setDeletingEventId(null);
-                                  }
-                                }}
-                                className="px-2.5 py-1 bg-rose-600 hover:bg-rose-500 text-white text-[10px] font-black rounded-lg shadow-md cursor-pointer flex items-center gap-1"
-                              >
-                                <span>ডিলিট করুন</span>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setDeletingEventId(null)}
-                                className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] font-bold rounded-lg cursor-pointer"
-                              >
-                                বাতিল
-                              </button>
-                            </div>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => setDeletingEventId(evt.id)}
-                              className="p-1.5 text-rose-400 hover:bg-rose-950/40 rounded-lg transition-colors cursor-pointer"
-                              title="ইভেন্ট ডিলিট করুন"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
+            <MobileEventsManager
+              events={localSettings.events || []}
+              activePopupId={localSettings.active_event_popup_id}
+              onAddEvent={async (eventObj) => {
+                const currentEvents = localSettings.events || [];
+                const updatedEvents = [eventObj, ...currentEvents];
+                const updatedSettings = {
+                  ...localSettings,
+                  events: updatedEvents,
+                  active_event_popup_id: (eventObj.show_as_popup && eventObj.active) ? eventObj.id : localSettings.active_event_popup_id
+                };
+                setLocalSettings(updatedSettings);
+                await onAddEvent(eventObj);
+                if (eventObj.show_as_popup && eventObj.active) {
+                  await onSaveSettings(updatedSettings);
+                }
+              }}
+              onUpdateEvent={async (id, updates) => {
+                await onUpdateEvent(id, updates);
+                const updatedEvents = (localSettings.events || []).map(e => e.id === id ? { ...e, ...updates } : e);
+                setLocalSettings(prev => ({ ...prev, events: updatedEvents }));
+              }}
+              onDeleteEvent={async (id) => {
+                await onDeleteEvent(id);
+                const updatedEvents = (localSettings.events || []).filter(e => e.id !== id);
+                const updated = {
+                  ...localSettings,
+                  events: updatedEvents,
+                  active_event_popup_id: localSettings.active_event_popup_id === id ? null : localSettings.active_event_popup_id
+                };
+                setLocalSettings(updated);
+                await onSaveSettings(updated);
+              }}
+              onSetActivePopupId={async (id) => {
+                const updated = { ...localSettings, active_event_popup_id: id };
+                setLocalSettings(updated);
+                await onSaveSettings(updated);
+              }}
+              showToast={(msg) => alert(msg)}
+            />
           )}
 
           {/* TAB: TICKETS MANAGEMENT */}
           {activeTab === 'tickets' && (
-            <div className="space-y-6 animate-in fade-in duration-200">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                <h2 className="text-lg font-black text-white flex items-center gap-2">
-                  <MessageCircle className="w-5 h-5 text-blue-500 animate-pulse" />
-                  <span>কাস্টমার সাপোর্ট টিকিটস (Customer Tickets)</span>
-                </h2>
-                <button
-                  onClick={() => setAdminTickets(fetchTickets())}
-                  className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer"
-                >
-                  <RefreshCw className="w-3.5 h-3.5" />
-                  <span>রিফ্রেশ</span>
-                </button>
-              </div>
-
-              {selectedAdminTicketId ? (
-                (() => {
-                  const t = adminTickets.find(item => item.id === selectedAdminTicketId);
-                  if (!t) return <p className="text-xs text-slate-400">টিকিট পাওয়া যায়নি।</p>;
-                  return (
-                    <div className="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden flex flex-col h-[600px] shadow-2xl">
-                      {/* Ticket Detail Header */}
-                      <div className="p-4 sm:p-5 bg-slate-800/40 border-b border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
-                        <div className="min-w-0">
-                          <div className="flex flex-wrap items-center gap-2 mb-1.5">
-                            <span className="font-mono text-[10px] sm:text-xs font-black text-blue-400 bg-blue-600/10 px-2.5 py-1 rounded-xl border border-blue-500/20">#{t.id}</span>
-                            <span className={`px-2.5 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider ${
-                              t.status === 'Open' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
-                              t.status === 'In Progress' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                            }`}>
-                              {t.status}
-                            </span>
-                            <span className="text-[10px] sm:text-xs font-bold text-slate-300 truncate">{t.user_name}</span>
-                          </div>
-                          <h4 className="text-sm sm:text-base font-black text-white truncate" title={t.subject}>{t.subject}</h4>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => {
-                              const newSt = (t.status === 'Closed' ? 'In Progress' : 'Closed') as ('Open' | 'In Progress' | 'Closed');
-                              const all = fetchTickets() as SupportTicket[];
-                              const updated = all.map(item => item.id === t.id ? { ...item, status: newSt } : item);
-                              saveTickets(updated);
-                              setAdminTickets(updated);
-                            }}
-                            className={`flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-xl text-[10px] sm:text-xs font-black cursor-pointer transition-all active:scale-95 shadow-lg flex items-center justify-center gap-1.5 ${
-                              t.status === 'Closed' ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : 'bg-rose-600 hover:bg-rose-500 text-white shadow-rose-600/20'
-                            }`}
-                          >
-                            {t.status === 'Closed' ? <RefreshCw className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
-                            <span>{t.status === 'Closed' ? 'রিওপেন করুন' : 'ক্লোজ টিকেট'}</span>
-                          </button>
-                          <button
-                            onClick={() => setSelectedAdminTicketId(null)}
-                            className="p-2 sm:px-4 sm:py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold cursor-pointer border border-slate-700 active:scale-95"
-                            title="তালিকায় ফিরুন"
-                          >
-                            <ArrowLeft className="w-4 h-4 sm:hidden" />
-                            <span className="hidden sm:inline">তালিকায় ফিরুন</span>
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Chat Messages Area */}
-                      <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] bg-fixed no-scrollbar">
-                        {t.messages.length === 0 && (
-                          <div className="h-full flex flex-col items-center justify-center text-slate-500 space-y-2 py-10">
-                            <MessageCircle className="w-10 h-10 opacity-20" />
-                            <p className="text-xs italic">কথোপকথন শুরু হয়নি।</p>
-                          </div>
-                        )}
-                        {t.messages.map(msg => {
-                          const isAdmin = msg.sender === 'admin';
-                          return (
-                            <div key={msg.id} className={`flex flex-col ${isAdmin ? 'items-end' : 'items-start'} group animate-in slide-in-from-bottom-2 duration-300`}>
-                              <div className="flex items-center gap-2 text-[9px] sm:text-[10px] text-slate-500 mb-1 px-1">
-                                <span className={`font-bold ${isAdmin ? 'text-blue-400' : 'text-slate-300'}`}>{isAdmin ? 'Veloral Support' : msg.sender_name}</span>
-                                <span className="opacity-50">•</span>
-                                <span>{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                              </div>
-                              <div className={`p-3 sm:p-4 rounded-2xl max-w-[90%] sm:max-w-[80%] text-xs sm:text-sm leading-relaxed shadow-sm transition-all ${
-                                isAdmin 
-                                  ? 'bg-blue-600 text-white rounded-tr-xs shadow-blue-600/10' 
-                                  : 'bg-slate-800 text-slate-100 border border-slate-700 rounded-tl-xs'
-                              }`}>
-                                <p className="whitespace-pre-wrap">{msg.message}</p>
-                                {msg.image_url && (
-                                  <div className="mt-2.5 rounded-xl overflow-hidden border border-white/20 max-w-full sm:max-w-xs shadow-md">
-                                    <img 
-                                      src={msg.image_url} 
-                                      alt="Attachment" 
-                                      className="w-full h-auto object-contain bg-slate-900/50 cursor-zoom-in" 
-                                      onClick={() => window.open(msg.image_url!, '_blank')}
-                                    />
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-
-                      {/* Admin Reply Input Section */}
-                      <div className="p-3 sm:p-5 bg-slate-950/80 backdrop-blur-md border-t border-slate-800 shrink-0">
-                        {t.status === 'Closed' ? (
-                          <div className="p-4 bg-rose-500/10 border border-rose-500/20 text-rose-300 rounded-2xl text-[11px] sm:text-xs text-center font-bold flex items-center justify-center gap-2">
-                            <Lock className="w-4 h-4" />
-                            <span>টিকেটটি বন্ধ রয়েছে। উত্তর দিতে রিওপেন করুন।</span>
-                          </div>
-                        ) : (
-                          <div className="space-y-3">
-                            {adminReplyImage && (
-                              <div className="flex items-center gap-2 p-2 bg-slate-900 border border-slate-800 rounded-2xl w-fit animate-in zoom-in duration-200">
-                                <img src={adminReplyImage} alt="Preview" className="w-12 h-12 object-cover rounded-lg border border-slate-700" />
-                                <button
-                                  onClick={() => setAdminReplyImage(null)}
-                                  className="w-6 h-6 bg-rose-600 text-white rounded-full flex items-center justify-center text-xs shadow-lg cursor-pointer hover:bg-rose-500 transition-colors"
-                                >
-                                  <X className="w-3.5 h-3.5" />
-                                </button>
-                              </div>
-                            )}
-
-                            <div className="flex items-end gap-2.5">
-                              <div className="flex-1 relative">
-                                <textarea
-                                  rows={1}
-                                  value={adminReplyText}
-                                  onChange={(e) => setAdminReplyText(e.target.value)}
-                                  placeholder="সন্দেশ লিখুন..."
-                                  className="w-full pl-4 pr-12 py-3.5 bg-slate-900 border border-slate-800 rounded-2xl text-white outline-none focus:border-blue-500 text-xs sm:text-sm resize-none transition-all focus:ring-1 focus:ring-blue-500/30 scrollbar-none max-h-32"
-                                  onInput={(e) => {
-                                    const target = e.target as HTMLTextAreaElement;
-                                    target.style.height = 'auto';
-                                    target.style.height = `${Math.min(target.scrollHeight, 120)}px`;
-                                  }}
-                                />
-                                <label className="absolute right-3 bottom-2.5 p-2 text-slate-400 hover:text-blue-400 transition-colors cursor-pointer" title="ছবি যুক্ত করুন">
-                                  <ImageIcon className="w-5 h-5" />
-                                  <input
-                                    type="file"
-                                    accept="image/*"
-                                    className="hidden"
-                                    onChange={(e) => {
-                                      const file = e.target.files?.[0];
-                                      if (!file) return;
-                                      if (file.size > 5 * 1024 * 1024) {
-                                        alert('ফাইল সাইজ ৫ MB এর বেশি হতে পারবে না।');
-                                        return;
-                                      }
-                                      const reader = new FileReader();
-                                      reader.onload = () => setAdminReplyImage(reader.result as string);
-                                      reader.readAsDataURL(file);
-                                    }}
-                                  />
-                                </label>
-                              </div>
-                              <button
-                                onClick={() => {
-                                  if (!adminReplyText.trim() && !adminReplyImage) return;
-                                  const all = fetchTickets();
-                                  const updated = all.map(item => {
-                                    if (item.id === t.id) {
-                                      const newMsg: TicketMessage = {
-                                        id: 'm_' + Date.now(),
-                                        sender: 'admin',
-                                        sender_name: 'Veloral Support (Admin)',
-                                        message: adminReplyText,
-                                        image_url: adminReplyImage || undefined,
-                                        timestamp: new Date().toISOString()
-                                      };
-                                      return { ...item, status: 'In Progress' as const, messages: [...item.messages, newMsg] };
-                                    }
-                                    return item;
-                                  });
-                                  saveTickets(updated);
-                                  setAdminTickets(updated);
-                                  setAdminReplyText('');
-                                  setAdminReplyImage(null);
-                                }}
-                                className="h-[46px] w-[46px] sm:w-auto sm:px-6 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl cursor-pointer transition-all shadow-xl shadow-blue-600/20 flex items-center justify-center gap-2 active:scale-90"
-                              >
-                                <Send className="w-5 h-5" />
-                                <span className="hidden sm:inline font-black uppercase text-xs tracking-widest">পাঠান</span>
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })()
-              ) : (
-                <div className="space-y-3">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <div className="bg-slate-900 p-4 rounded-2xl border border-slate-800 text-center">
-                      <span className="text-xs text-slate-400 block">মোট টিকিট</span>
-                      <span className="text-xl font-black text-white">{adminTickets.length}</span>
-                    </div>
-                    <div className="bg-slate-900 p-4 rounded-2xl border border-slate-800 text-center">
-                      <span className="text-xs text-amber-400 block">অপেক্ষমাণ (Open/In Progress)</span>
-                      <span className="text-xl font-black text-amber-400">{adminTickets.filter(t => t.status === 'Open' || t.status === 'In Progress').length}</span>
-                    </div>
-                    <div className="bg-slate-900 p-4 rounded-2xl border border-slate-800 text-center">
-                      <span className="text-xs text-emerald-400 block">বন্ধ (Closed)</span>
-                      <span className="text-xl font-black text-emerald-400">{adminTickets.filter(t => t.status === 'Closed').length}</span>
-                    </div>
-                  </div>
-
-                  <div className="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden">
-                    <div className="p-4 border-b border-slate-800 font-black text-xs text-white">সকল সাপোর্ট টিকিট তালিকা</div>
-                    <div className="divide-y divide-slate-800/60 max-h-96 overflow-y-auto">
-                      {adminTickets.length === 0 ? (
-                        <div className="p-8 text-center text-xs text-slate-500">কোনো সাপোর্ট টিকিট জমা পড়েনি।</div>
-                      ) : (
-                        adminTickets.map(t => (
-                          <div key={t.id} className="p-4 flex items-center justify-between hover:bg-slate-850/50 transition-colors text-xs">
-                            <div className="space-y-1">
-                              <div className="flex items-center gap-2">
-                                <span className="font-mono font-black text-blue-400 bg-blue-600/10 px-2.5 py-0.5 rounded-lg">#{t.id}</span>
-                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                                  t.status === 'Open' ? 'bg-amber-500/10 text-amber-400' :
-                                  t.status === 'In Progress' ? 'bg-blue-500/10 text-blue-400' : 'bg-rose-500/10 text-rose-400'
-                                }`}>
-                                  {t.status}
-                                </span>
-                                <span className="text-slate-400 text-[11px]">{t.user_name} ({t.user_phone})</span>
-                              </div>
-                              <p className="font-bold text-slate-200">{t.subject}</p>
-                              <span className="text-[10px] text-slate-500 block">{new Date(t.created_at).toLocaleString()}</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <button
-                                onClick={() => setSelectedAdminTicketId(t.id)}
-                                className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold cursor-pointer"
-                              >
-                                চ্যাট ও রিপ্লাই
-                              </button>
-                            </div>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
+            <MobileTicketsManager
+              tickets={adminTickets}
+              onUpdateTicketStatus={(ticketId, newStatus) => {
+                const all = fetchTickets();
+                const updated = all.map(item => item.id === ticketId ? { ...item, status: newStatus } : item);
+                saveTickets(updated);
+                setAdminTickets(updated);
+              }}
+              onReplyTicket={(ticketId, replyMessage, imageUrl) => {
+                const all = fetchTickets();
+                const updated = all.map(item => {
+                  if (item.id === ticketId) {
+                    const newMsg: TicketMessage = {
+                      id: 'm_' + Date.now(),
+                      sender: 'admin',
+                      sender_name: 'Veloral Support (Admin)',
+                      message: replyMessage,
+                      image_url: imageUrl,
+                      timestamp: new Date().toISOString()
+                    };
+                    return { ...item, status: 'In Progress' as const, messages: [...item.messages, newMsg] };
+                  }
+                  return item;
+                });
+                saveTickets(updated);
+                setAdminTickets(updated);
+              }}
+              onRefreshTickets={() => setAdminTickets(fetchTickets())}
+              showToast={(msg) => alert(msg)}
+            />
           )}
 
           {/* TAB: REVIEWS MANAGEMENT */}
           {activeTab === 'reviews' && (
-            <div className="space-y-6 animate-in fade-in duration-200">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                <h2 className="text-lg font-black text-white flex items-center gap-2">
-                  <Star className="w-5 h-5 text-amber-400" />
-                  <span>প্রোডাক্ট রিভিউ ম্যানেজমেন্ট</span>
-                </h2>
-                <div className="text-xs font-bold text-slate-400 bg-slate-900 px-3 py-1 rounded-full">
-                  মোট {reviews.length} টি রিভিউ
-                </div>
-              </div>
-
-              <div className="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-sm">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-xs text-left text-slate-300">
-                    <thead className="bg-slate-950 text-slate-400 uppercase text-[10px] font-black">
-                      <tr>
-                        <th className="p-4">তারিখ ও গ্রাহক</th>
-                        <th className="p-4">প্রোডাক্ট</th>
-                        <th className="p-4">রেটিং</th>
-                        <th className="p-4">কমেন্ট</th>
-                        <th className="p-4 text-right">অ্যাকশন</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-800">
-                      {reviews.length === 0 ? (
-                        <tr>
-                          <td colSpan={5} className="p-12 text-center text-slate-500 italic">কোনো রিভিউ পাওয়া যায়নি।</td>
-                        </tr>
-                      ) : (
-                        reviews.map((r) => {
-                          const prod = products.find(p => p.id === r.product_id);
-                          return (
-                            <tr key={r.id} className="hover:bg-slate-850/40 transition-colors">
-                              <td className="p-4">
-                                <div className="font-bold text-white">{r.user_name}</div>
-                                <div className="text-[10px] text-slate-500 mt-0.5">{new Date(r.created_at).toLocaleString()}</div>
-                              </td>
-                              <td className="p-4">
-                                <div className="font-medium text-slate-200 max-w-[150px] truncate" title={prod?.title}>
-                                  {prod?.title || 'Unknown Product'}
-                                </div>
-                                <div className="text-[9px] text-slate-500 font-mono mt-0.5">#{r.product_id}</div>
-                              </td>
-                              <td className="p-4">
-                                <div className="flex gap-0.5">
-                                  {[1, 2, 3, 4, 5].map((s) => (
-                                    <Star
-                                      key={s}
-                                      className={`w-3 h-3 ${s <= r.rating ? 'text-amber-400 fill-amber-400' : 'text-slate-800'}`}
-                                    />
-                                  ))}
-                                </div>
-                              </td>
-                              <td className="p-4">
-                                <div className="text-slate-400 leading-relaxed max-w-[250px] line-clamp-2" title={r.comment}>
-                                  "{r.comment}"
-                                </div>
-                              </td>
-                              <td className="p-4 text-right">
-                                <button
-                                  onClick={() => {
-                                    if (confirm('আপনি কি এই রিভিউটি ডিলিট করতে চান?')) {
-                                      onDeleteReview(r.id);
-                                    }
-                                  }}
-                                  className="p-2 bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white rounded-xl transition-all cursor-pointer"
-                                  title="ডিলিট রিভিউ"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
-                              </td>
-                            </tr>
-                          );
-                        })
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
+            <MobileReviewsManager
+              reviews={reviews}
+              products={products}
+              onDeleteReview={onDeleteReview}
+              showToast={(msg) => alert(msg)}
+            />
           )}
         </main>
       </div>

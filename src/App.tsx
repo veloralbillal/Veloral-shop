@@ -18,7 +18,7 @@ import {
   initializeDatabaseTables, fetchUsers, getLocalProducts,
   fetchReviews, addReview, deleteReview, fetchAccounts, saveAccounts,
   fetchOffers, saveOffers, fetchOfferSubmissions, saveOfferSubmissions,
-  fetchAffiliateProducts
+  fetchAffiliateProducts, getLocalOrders, getLocalAliExpressOrders, getStoredUsers, getLocalReviews, getLocalSettings
 } from './services/db';
 import { AccountMarketplace } from './components/accounts/AccountMarketplace';
 import { AccountDetailScreen } from './components/accounts/AccountDetailScreen';
@@ -67,12 +67,15 @@ export default function App() {
   const [accounts, setAccounts] = useState<AccountItem[]>(fetchAccounts());
   const [offers, setOffers] = useState<OfferItem[]>(fetchOffers());
   const [offerSubmissions, setOfferSubmissions] = useState<OfferSubmission[]>(fetchOfferSubmissions());
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [aliExpressOrders, setAliExpressOrders] = useState<AliExpressDemandOrder[]>([]);
-  const [users, setUsers] = useState<User[]>([]);
-  const [reviews, setReviews] = useState<Review[]>([]);
+  const [orders, setOrders] = useState<Order[]>(() => getLocalOrders());
+  const [aliExpressOrders, setAliExpressOrders] = useState<AliExpressDemandOrder[]>(() => getLocalAliExpressOrders());
+  const [users, setUsers] = useState<User[]>(() => {
+    const stored = getStoredUsers();
+    return stored.map(u => ({ id: u.id, name: u.name, phone: u.phone, email: u.email, role: u.role, created_at: u.created_at, wallet_balance: u.wallet_balance }));
+  });
+  const [reviews, setReviews] = useState<Review[]>(() => getLocalReviews());
   const [topupCatalog, setTopupCatalog] = useState<TopupItem[]>([]);
-  const [settings, setSettings] = useState<StoreSettings>(INITIAL_SETTINGS);
+  const [settings, setSettings] = useState<StoreSettings>(() => getLocalSettings());
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -103,11 +106,13 @@ export default function App() {
     }
   });
   const [lastPopupId, setLastPopupId] = useState<string | null>(null);
-  const [isLoadingData, setIsLoadingData] = useState(true);
+  const [isLoadingData, setIsLoadingData] = useState(false);
 
   const loadData = async () => {
     try {
-      await initializeDatabaseTables();
+      // Non-blocking background database verification
+      initializeDatabaseTables().catch(() => {});
+
       const [sett, evts, cats, subCats, prods, ords, aliOrds, usrs, revs] = await Promise.all([
         fetchStoreSettings(),
         fetchEvents(),

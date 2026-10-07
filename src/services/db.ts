@@ -66,7 +66,14 @@ const DEFAULT_CONFIG: DbConfig = {
 export function getDbConfig(): DbConfig {
   try {
     const raw = localStorage.getItem(LOCAL_STORAGE_KEYS.DB_CONFIG);
-    return raw ? { ...DEFAULT_CONFIG, ...JSON.parse(raw) } : DEFAULT_CONFIG;
+    if (!raw) return DEFAULT_CONFIG;
+    const parsed = JSON.parse(raw);
+    return {
+      ...DEFAULT_CONFIG,
+      ...parsed,
+      bridgeUrl: (parsed.bridgeUrl && parsed.bridgeUrl.trim()) ? parsed.bridgeUrl.trim() : DEFAULT_CONFIG.bridgeUrl,
+      token: (parsed.token && parsed.token.trim()) ? parsed.token.trim() : DEFAULT_CONFIG.token,
+    };
   } catch {
     return DEFAULT_CONFIG;
   }
@@ -79,62 +86,85 @@ export function saveDbConfig(cfg: Partial<DbConfig>) {
   return updated;
 }
 
-// Low-level query executor
+// Track whether backend proxy (/api/db) is available in this deployment
+let hasBackendProxy: boolean | null = null;
+
+// Low-level query executor supporting both preview (Node.js proxy) and production static deployment (direct PHP bridge)
 export async function executeQuery<T = any>(sql: string): Promise<{ success: boolean; data?: T[]; message?: string; insert_id?: number }> {
   const cfg = getDbConfig();
 
-  // 1. Try backend proxy route (/api/db)
-  try {
-    const res = await fetch('/api/db', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: 'query',
-        sql,
-      }),
-    });
+  // 1. Try backend proxy route (/api/db) only if not known to be unavailable
+  if (hasBackendProxy !== false) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 4000);
 
-    const contentType = res.headers.get('content-type') || '';
-    if (res.ok && contentType.includes('application/json')) {
-      const json = await res.json();
-      return json;
+      const res = await fetch('/api/db', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'query',
+          sql,
+        }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+
+      const contentType = res.headers.get('content-type') || '';
+      if (res.ok && contentType.includes('application/json')) {
+        hasBackendProxy = true;
+        const json = await res.json();
+        return json;
+      } else {
+        // Returned HTML (e.g. 404 SPA fallback on static hosting)
+        hasBackendProxy = false;
+      }
+    } catch (err) {
+      // Backend proxy route unavailable or timed out (e.g. static hosting on GitHub Pages, Netlify, cPanel)
+      hasBackendProxy = false;
     }
-  } catch (err) {
-    // Backend proxy route unavailable (e.g. static hosting on GitHub Pages)
   }
 
-  // 2. Direct CORS fallback to remote PHP Bridge (https://api.veloralbillal.top/db_bridge.php)
+  // 2. Direct CORS connection to remote PHP Bridge (https://api.veloralbillal.top/db_bridge.php)
   if (cfg.bridgeUrl) {
     try {
       const postData = new URLSearchParams();
-      postData.append('token', cfg.token || 'Billal50598326');
+      postData.append('token', cfg.token || DEFAULT_CONFIG.token);
       postData.append('action', 'query');
       postData.append('sql', sql);
-      postData.append('db_host', cfg.dbHost || 'localhost');
-      postData.append('db_name', cfg.dbName || 'veloralb_Digital');
-      postData.append('db_user', cfg.dbUser || 'veloralb_Digital');
+      postData.append('db_host', cfg.dbHost || DEFAULT_CONFIG.dbHost);
+      postData.append('db_name', cfg.dbName || DEFAULT_CONFIG.dbName);
+      postData.append('db_user', cfg.dbUser || DEFAULT_CONFIG.dbUser);
       if (cfg.dbPass) postData.append('db_pass', cfg.dbPass);
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 12000); // 12 seconds timeout for cross-domain queries
 
       const bridgeRes = await fetch(cfg.bridgeUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
         body: postData.toString(),
+        signal: controller.signal,
       });
+      clearTimeout(timeoutId);
 
       if (bridgeRes.ok) {
         const text = await bridgeRes.text();
         try {
-          return JSON.parse(text);
-        } catch {}
+          const parsed = JSON.parse(text);
+          return parsed;
+        } catch (jsonErr) {
+          console.warn('Bridge returned non-JSON:', text.slice(0, 150));
+        }
       }
-    } catch (bridgeErr) {
-      // Silently fallback to local storage mode
+    } catch (bridgeErr: any) {
+      console.warn('Direct bridge connection error:', bridgeErr);
     }
   }
 
   return {
     success: false,
-    message: 'Static deployment mode active (Local storage fallback enabled)',
+    message: 'Database query could not be completed. Local offline cache mode active.',
   };
 }
 
@@ -167,8 +197,20 @@ export async function checkDbConnection(): Promise<DbStatus> {
   }
 }
 
+let isTablesInitialized = false;
+
 // DDL for creating tables on remote MySQL
-export async function initializeDatabaseTables(): Promise<{ success: boolean; message?: string }> {
+export async function initializeDatabaseTables(force: boolean = false): Promise<{ success: boolean; message?: string }> {
+  if (isTablesInitialized && !force) {
+    return { success: true, message: 'All tables already verified in session' };
+  }
+  try {
+    if (!force && sessionStorage.getItem('veloral_db_tables_ready') === 'true') {
+      isTablesInitialized = true;
+      return { success: true, message: 'All tables verified' };
+    }
+  } catch {}
+
   const tableStatements = [
     `CREATE TABLE IF NOT EXISTS veloral_users (
       id VARCHAR(64) PRIMARY KEY,
@@ -429,6 +471,13 @@ export async function initializeDatabaseTables(): Promise<{ success: boolean; me
     console.warn('Auto-seed check error:', seedErr);
   }
 
+  if (successCount > 0 || !lastError) {
+    isTablesInitialized = true;
+    try {
+      sessionStorage.setItem('veloral_db_tables_ready', 'true');
+    } catch {}
+  }
+
   if (successCount === tableStatements.length) {
     return {
       success: true,
@@ -577,7 +626,7 @@ function setLocalProducts(products: Product[]) {
   safeSetItem(LOCAL_STORAGE_KEYS.PRODUCTS, products);
 }
 
-function getLocalOrders(): Order[] {
+export function getLocalOrders(): Order[] {
   try {
     const raw = localStorage.getItem(LOCAL_STORAGE_KEYS.ORDERS);
     return raw ? JSON.parse(raw) : [];
@@ -586,11 +635,11 @@ function getLocalOrders(): Order[] {
   }
 }
 
-function setLocalOrders(orders: Order[]) {
+export function setLocalOrders(orders: Order[]) {
   safeSetItem(LOCAL_STORAGE_KEYS.ORDERS, orders);
 }
 
-function getLocalAliExpressOrders(): AliExpressDemandOrder[] {
+export function getLocalAliExpressOrders(): AliExpressDemandOrder[] {
   try {
     const raw = localStorage.getItem(LOCAL_STORAGE_KEYS.ALIEXPRESS_ORDERS);
     return raw ? JSON.parse(raw) : [];
@@ -599,7 +648,7 @@ function getLocalAliExpressOrders(): AliExpressDemandOrder[] {
   }
 }
 
-function getLocalReviews(): Review[] {
+export function getLocalReviews(): Review[] {
   try {
     const raw = localStorage.getItem(LOCAL_STORAGE_KEYS.REVIEWS);
     return raw ? JSON.parse(raw) : [];
@@ -608,11 +657,22 @@ function getLocalReviews(): Review[] {
   }
 }
 
-function setLocalReviews(reviews: Review[]) {
+export function setLocalReviews(reviews: Review[]) {
   safeSetItem(LOCAL_STORAGE_KEYS.REVIEWS, reviews);
 }
 
-function setLocalAliExpressOrders(orders: AliExpressDemandOrder[]) {
+export function getLocalSettings(): StoreSettings {
+  try {
+    const raw = localStorage.getItem(LOCAL_STORAGE_KEYS.SETTINGS);
+    if (!raw) return INITIAL_SETTINGS;
+    const parsed = JSON.parse(raw);
+    return { ...INITIAL_SETTINGS, ...parsed };
+  } catch {
+    return INITIAL_SETTINGS;
+  }
+}
+
+export function setLocalAliExpressOrders(orders: AliExpressDemandOrder[]) {
   safeSetItem(LOCAL_STORAGE_KEYS.ALIEXPRESS_ORDERS, orders);
 }
 
@@ -621,7 +681,11 @@ function setLocalAliExpressOrders(orders: AliExpressDemandOrder[]) {
 export async function fetchProducts(category?: string, limit: number = 50, offset: number = 0): Promise<Product[]> {
   const catFilter = category && category !== 'all' ? `WHERE category = '${category.replace(/'/g, "''")}'` : '';
   const sql = `
-    SELECT * 
+    SELECT 
+      id, title, category, price, discount_price, image_url, description, 
+      stock, digital_payload, badge, product_code, file_name, file_size, 
+      is_flash_sale, is_hot_sale, is_for_you, cod_or_advance, sub_category, created_at,
+      CASE WHEN LENGTH(download_file_url) > 50000 THEN 'available_on_demand' ELSE download_file_url END as download_file_url
     FROM veloral_products 
     ${catFilter}
     ORDER BY created_at DESC 
@@ -652,6 +716,28 @@ export async function fetchProducts(category?: string, limit: number = 50, offse
     return filtered.length > 0 ? filtered : local;
   }
   return local && local.length > 0 ? local : INITIAL_PRODUCTS;
+}
+
+export async function fetchProductDownloadFile(productId: string): Promise<string | null> {
+  const res = await executeQuery<{ download_file_url: string }>(
+    `SELECT download_file_url FROM veloral_products WHERE id = '${productId.replace(/'/g, "''")}' LIMIT 1`
+  );
+  if (res.success && res.data && res.data[0]) {
+    return res.data[0].download_file_url || null;
+  }
+  const local = getLocalProducts().find(p => p.id === productId);
+  return local?.download_file_url || null;
+}
+
+export async function fetchOrderDownloadFile(orderId: string): Promise<string | null> {
+  const res = await executeQuery<{ download_file_url: string }>(
+    `SELECT download_file_url FROM veloral_orders WHERE id = '${orderId.replace(/'/g, "''")}' LIMIT 1`
+  );
+  if (res.success && res.data && res.data[0]) {
+    return res.data[0].download_file_url || null;
+  }
+  const local = getLocalOrders().find(o => o.id === orderId);
+  return local?.download_file_url || null;
 }
 
 export async function addProduct(prod: Omit<Product, 'id'>): Promise<Product> {
@@ -717,7 +803,12 @@ export async function updateProduct(id: string, updates: Partial<Omit<Product, '
 
 export async function fetchOrders(limit: number = 50, offset: number = 0): Promise<Order[]> {
   const sql = `
-    SELECT * 
+    SELECT 
+      id, order_number, order_type, customer_name, customer_phone, customer_email, 
+      delivery_address, items_summary, total_amount, payment_method, payment_phone, 
+      trx_id, player_id, server_id, operator, recharge_type, status, notes,
+      license_key_delivered, file_name, product_code, created_at,
+      CASE WHEN LENGTH(download_file_url) > 50000 THEN 'available_on_demand' ELSE download_file_url END as download_file_url
     FROM veloral_orders 
     ORDER BY created_at DESC 
     LIMIT ${limit} OFFSET ${offset}
@@ -1280,13 +1371,7 @@ export function startAutoSync(onStatusUpdate?: (status: DbStatus) => void): () =
       if (onStatusUpdate) onStatusUpdate(conn);
       
       if (conn.isConnected) {
-        addSystemLog('sync', 'Automatic database synchronization cycle started...', 'text-slate-400');
-        const result = await syncAllLocalDataToMySQL();
-        if (result.success) {
-          addSystemLog('sync', `MySQL Sync Complete: ${result.ordersSynced} orders, ${result.productsSynced} products processed.`, 'text-emerald-500');
-        } else {
-          addSystemLog('sync', `Sync warning: ${result.message}`, 'text-amber-500');
-        }
+        addSystemLog('sync', 'Database connection verified and active.', 'text-emerald-500');
       } else {
         addSystemLog('system', 'Operating in local fallback mode (Offline).', 'text-amber-500');
       }

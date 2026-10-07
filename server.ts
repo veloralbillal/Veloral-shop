@@ -33,6 +33,7 @@ if (!fs.existsSync(CACHE_DIR)) {
 }
 
 const CACHE_TTL = 60 * 5; // 5 minutes cache for read queries
+const inMemoryCache = new Map<string, { data: any; expiresAt: number }>();
 
 function getCacheKey(sql: string, params: any) {
   const hash = crypto.createHash('md5').update(sql + JSON.stringify(params)).digest('hex');
@@ -40,6 +41,7 @@ function getCacheKey(sql: string, params: any) {
 }
 
 function clearCache() {
+  inMemoryCache.clear();
   try {
     const files = fs.readdirSync(CACHE_DIR);
     for (const file of files) {
@@ -86,20 +88,35 @@ app.post('/api/db', async (req: Request, res: Response) => {
   limit.count++;
   rateLimits.set(ip, limit);
   
-  if (limit.count > 100) { // 100 requests per minute
+  if (limit.count > 300) { // 300 requests per minute
     return res.status(429).json({ success: false, message: 'Too many requests. Please slow down.' });
   }
 
   const isReadQuery = sql && sql.trim().toLowerCase().startsWith('select');
+  const cacheKey = isReadQuery ? `${sql}_${db_host || ''}_${db_name || ''}` : null;
   const cacheFile = isReadQuery ? getCacheKey(sql, { db_host, db_name }) : null;
 
-  // Check cache
+  // 1. Check in-memory fast cache (0ms)
+  if (cacheKey && inMemoryCache.has(cacheKey)) {
+    const memItem = inMemoryCache.get(cacheKey)!;
+    if (now < memItem.expiresAt) {
+      return res.json(memItem.data);
+    } else {
+      inMemoryCache.delete(cacheKey);
+    }
+  }
+
+  // 2. Check disk cache
   if (cacheFile && fs.existsSync(cacheFile)) {
     const stats = fs.statSync(cacheFile);
     if (now - stats.mtimeMs < CACHE_TTL * 1000) {
       try {
         const data = fs.readFileSync(cacheFile, 'utf8');
-        return res.json(JSON.parse(data));
+        const parsed = JSON.parse(data);
+        if (cacheKey) {
+          inMemoryCache.set(cacheKey, { data: parsed, expiresAt: now + CACHE_TTL * 1000 });
+        }
+        return res.json(parsed);
       } catch (e) {
         // Fallback to fetch if cache read fails
       }
@@ -142,8 +159,11 @@ app.post('/api/db', async (req: Request, res: Response) => {
     }
 
     // Save to cache if it's a successful read query
-    if (jsonResult.success && cacheFile) {
-      fs.writeFileSync(cacheFile, JSON.stringify(jsonResult));
+    if (jsonResult.success && cacheKey && cacheFile) {
+      inMemoryCache.set(cacheKey, { data: jsonResult, expiresAt: now + CACHE_TTL * 1000 });
+      try {
+        fs.writeFileSync(cacheFile, JSON.stringify(jsonResult));
+      } catch {}
     }
 
     // Invalidate cache on write operations

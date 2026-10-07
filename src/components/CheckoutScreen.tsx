@@ -140,14 +140,21 @@ export const CheckoutScreen: React.FC<CheckoutScreenProps> = ({
           else if (next === 0) setProcessingStatusText('✓ সফল হয়েছে! অর্ডার ট্র্যাকিং পেজে নিয়ে যাওয়া হচ্ছে...');
           return next;
         });
-      }, 900);
+      }, 800);
       return () => clearTimeout(timer);
-    } else if (countdown === 0 && pendingCreatedOrder) {
+    }
+  }, [isProcessingTimer, countdown]);
+
+  // Finish redirection effect when both countdown is 0 and order is created
+  useEffect(() => {
+    if (!isProcessingTimer) return;
+
+    if (countdown === 0 && pendingCreatedOrder) {
       const finishTimer = setTimeout(() => {
         setIsProcessingTimer(false);
         setIsSubmitting(false);
         onOrderSuccess(pendingCreatedOrder);
-      }, 600);
+      }, 300);
       return () => clearTimeout(finishTimer);
     }
   }, [isProcessingTimer, countdown, pendingCreatedOrder, onOrderSuccess]);
@@ -395,7 +402,10 @@ export const CheckoutScreen: React.FC<CheckoutScreenProps> = ({
       // ONLY wallet payment is instantly completed! Manual bKash/Nagad/Rocket/COD are strictly pending!
       const isInstantDigital = paymentMethod === 'wallet';
 
-      const orderPromise = onSubmitOrder({
+      const orderNumber = `ORD-${Math.floor(100000 + Math.random() * 900000)}`;
+      const instantOrder: Order = {
+        id: `ord-${Date.now()}`,
+        order_number: orderNumber,
         order_type: orderType,
         customer_name: customerName.trim(),
         customer_phone: customerPhone.trim(),
@@ -416,15 +426,38 @@ export const CheckoutScreen: React.FC<CheckoutScreenProps> = ({
         file_name: fileName,
         product_code: productCode,
         notes: notes.trim() || undefined,
-      });
+        created_at: new Date().toISOString(),
+      };
 
-      // Show interactive processing countdown timer modal
+      // Show interactive processing lightning-fast countdown timer modal instantly (0ms delay)
+      setPendingCreatedOrder(instantOrder);
       setIsProcessingTimer(true);
-      setCountdown(4);
-      setProcessingStatusText('১/৩: পেমেন্ট ট্রানজেকশন (TrxID) তথ্য যাচাই হচ্ছে...');
+      setCountdown(2);
+      setProcessingStatusText('✓ সফল হয়েছে! অর্ডার ট্র্যাকিং পেজে নিয়ে যাওয়া হচ্ছে...');
 
-      const created = await orderPromise;
-      setPendingCreatedOrder(created);
+      // Fire-and-forget background sync to database
+      onSubmitOrder({
+        order_type: orderType,
+        customer_name: customerName.trim(),
+        customer_phone: customerPhone.trim(),
+        customer_email: customerEmail.trim() || undefined,
+        delivery_address: deliveryAddress.trim() || undefined,
+        items_summary: itemsSummary + (appliedCoupon ? ` [কুপন: ${appliedCoupon.code} ৳${appliedDiscount} ছাড়]` : ''),
+        total_amount: finalTotalAmount,
+        payment_method: paymentMethod,
+        payment_phone: paymentPhone.trim() || undefined,
+        trx_id: trxId.trim() || undefined,
+        player_id: directTopup?.extra.playerId,
+        server_id: directTopup?.extra.serverId,
+        operator: directTopup?.extra.operator,
+        recharge_type: directTopup?.extra.rechargeType,
+        status: isInstantDigital ? 'completed' : 'pending',
+        license_key_delivered: isInstantDigital ? licenseKey : undefined,
+        download_file_url: downloadFileUrl,
+        file_name: fileName,
+        product_code: productCode,
+        notes: notes.trim() || undefined,
+      }).catch(err => console.warn('Background order sync error:', err));
     } catch (err: any) {
       setIsProcessingTimer(false);
       setIsSubmitting(false);
