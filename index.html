@@ -57,11 +57,36 @@
 
           window.handleScriptError = function(script) {
             updateDebug('Failed to load: ' + script.src);
+            
+            if (script.src.indexOf('src/main.tsx') !== -1) {
+              updateDebug('Trying production fallback (index.js)...');
+              
+              // Dynamically inject compiled production CSS
+              const link = document.createElement('link');
+              link.rel = 'stylesheet';
+              link.href = './assets/index.css';
+              document.head.appendChild(link);
+              
+              // Dynamically inject compiled production JS
+              const fallbackScript = document.createElement('script');
+              fallbackScript.type = 'module';
+              fallbackScript.src = './assets/index.js';
+              fallbackScript.onerror = function() {
+                updateDebug('Fallback failed: ' + fallbackScript.src);
+                showFinalError();
+              };
+              document.body.appendChild(fallbackScript);
+            } else {
+              showFinalError();
+            }
+          };
+
+          function showFinalError() {
             const status = document.getElementById('error-status');
             if (status) status.innerText = "ফাইল লোড ব্যর্থ (Network/Path Issue)";
             document.getElementById('recovery-actions').style.display = 'block';
             document.getElementById('loading-spinner').style.display = 'none';
-          };
+          }
 
           // Mark as loaded when React starts
           window.markAppAsLoaded = function() {

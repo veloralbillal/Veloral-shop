@@ -11,8 +11,8 @@
     <meta property="og:description" content="Digital products, physical goods, mobile & game top-up, and AliExpress on-demand shopping platform." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
-    <script type="module" crossorigin src="./assets/index-DNBdvO4Y.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-D3j0_0CK.css">
+    <script type="module" crossorigin src="./assets/index.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index.css">
   </head>
   <body class="bg-[#020617] text-slate-100 min-h-screen antialiased">
     <div id="root">
@@ -59,11 +59,36 @@
 
           window.handleScriptError = function(script) {
             updateDebug('Failed to load: ' + script.src);
+            
+            if (script.src.indexOf('src/main.tsx') !== -1) {
+              updateDebug('Trying production fallback (index.js)...');
+              
+              // Dynamically inject compiled production CSS
+              const link = document.createElement('link');
+              link.rel = 'stylesheet';
+              link.href = './assets/index.css';
+              document.head.appendChild(link);
+              
+              // Dynamically inject compiled production JS
+              const fallbackScript = document.createElement('script');
+              fallbackScript.type = 'module';
+              fallbackScript.src = './assets/index.js';
+              fallbackScript.onerror = function() {
+                updateDebug('Fallback failed: ' + fallbackScript.src);
+                showFinalError();
+              };
+              document.body.appendChild(fallbackScript);
+            } else {
+              showFinalError();
+            }
+          };
+
+          function showFinalError() {
             const status = document.getElementById('error-status');
             if (status) status.innerText = "ফাইল লোড ব্যর্থ (Network/Path Issue)";
             document.getElementById('recovery-actions').style.display = 'block';
             document.getElementById('loading-spinner').style.display = 'none';
-          };
+          }
 
           // Mark as loaded when React starts
           window.markAppAsLoaded = function() {
