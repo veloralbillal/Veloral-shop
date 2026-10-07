@@ -86,7 +86,7 @@ export function saveDbConfig(cfg: Partial<DbConfig>) {
   return updated;
 }
 
-// Track whether backend proxy (/api/db) is available in this deployment
+// Track whether backend proxy (./api/db) is available in this deployment
 let hasBackendProxy: boolean | null = null;
 let proxyCheckInProgress: Promise<boolean> | null = null;
 
@@ -98,7 +98,7 @@ async function checkProxy(): Promise<boolean> {
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 2000);
-      const res = await fetch('/api/db', {
+      const res = await fetch('./api/db', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'query', sql: 'SELECT 1' }),
@@ -118,12 +118,12 @@ async function checkProxy(): Promise<boolean> {
 export async function executeQuery<T = any>(sql: string): Promise<{ success: boolean; data?: T[]; message?: string; insert_id?: number }> {
   const cfg = getDbConfig();
 
-  // 1. Try backend proxy route (/api/db)
+  // 1. Try backend proxy route (./api/db)
   if (await checkProxy()) {
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 5000);
-      const res = await fetch('/api/db', {
+      const res = await fetch('./api/db', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'query', sql }),
