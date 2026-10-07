@@ -57,27 +57,67 @@
             return false;
           };
 
+          function getDynamicBasePath() {
+            const path = window.location.pathname;
+            const segments = path.split('/');
+            if (segments.length > 1) {
+              if (segments[segments.length - 1].indexOf('.') !== -1 || segments[segments.length - 1] === '') {
+                segments.pop();
+              }
+              const base = segments.join('/');
+              return base + (base.endsWith('/') ? '' : '/');
+            }
+            return '/';
+          }
+
           window.handleScriptError = function(script) {
             updateDebug('Failed to load: ' + script.src);
             
             if (script.src.indexOf('src/main.tsx') !== -1) {
-              updateDebug('Trying production fallback (index.js)...');
+              const basePath = getDynamicBasePath();
+              const jsUrl = basePath + 'assets/index.js';
+              const cssUrl = basePath + 'assets/index.css';
               
-              // Dynamically inject compiled production CSS
-              const link = document.createElement('link');
-              link.rel = 'stylesheet';
-              link.href = './assets/index.css';
-              document.head.appendChild(link);
+              updateDebug('Base Path: ' + basePath);
+              updateDebug('Checking production fallbacks...');
               
-              // Dynamically inject compiled production JS
-              const fallbackScript = document.createElement('script');
-              fallbackScript.type = 'module';
-              fallbackScript.src = './assets/index.js';
-              fallbackScript.onerror = function() {
-                updateDebug('Fallback failed: ' + fallbackScript.src);
-                showFinalError();
-              };
-              document.body.appendChild(fallbackScript);
+              // Try loading CSS
+              fetch(cssUrl)
+                .then(r => {
+                  if (r.ok) {
+                    const link = document.createElement('link');
+                    link.rel = 'stylesheet';
+                    link.href = cssUrl;
+                    document.head.appendChild(link);
+                    updateDebug('CSS fallback found & injected');
+                  }
+                }).catch(() => {});
+              
+              // Try loading JS
+              fetch(jsUrl)
+                .then(r => {
+                  if (r.ok) {
+                    updateDebug('JS fallback found, injecting...');
+                    const fallbackScript = document.createElement('script');
+                    fallbackScript.type = 'module';
+                    fallbackScript.src = jsUrl;
+                    fallbackScript.onload = function() {
+                      updateDebug('Fallback script loaded');
+                    };
+                    fallbackScript.onerror = function() {
+                      updateDebug('Fallback script execution error');
+                      showFinalError();
+                    };
+                    document.body.appendChild(fallbackScript);
+                  } else {
+                    updateDebug('JS fallback 404/Error: ' + r.status);
+                    showFinalError();
+                  }
+                })
+                .catch(err => {
+                  updateDebug('Fetch check failed: ' + err.message);
+                  showFinalError();
+                });
             } else {
               showFinalError();
             }
