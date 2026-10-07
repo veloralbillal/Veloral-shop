@@ -1,0 +1,19 @@
+{
+  "id": "./",
+  "name": "Veloral Digital & Shop",
+  "short_name": "Veloral",
+  "description": "Digital products, physical goods, mobile & game top-up, and AliExpress on-demand shopping platform.",
+  "theme_color": "#2563eb",
+  "background_color": "#0f172a",
+  "display": "standalone",
+  "start_url": "./",
+  "scope": "./",
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
