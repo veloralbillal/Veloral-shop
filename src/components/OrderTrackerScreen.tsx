@@ -2,9 +2,10 @@ import React, { useState } from 'react';
 import { Order, AliExpressDemandOrder } from '../types';
 import { 
   ArrowLeft, Search, PackageCheck, AlertCircle, Copy, Check, Zap, Globe, 
-  Clock, CreditCard, ShoppingBag, Truck, ShieldCheck, Heart, Download, FileText, CheckCircle2, Sparkles
+  Clock, CreditCard, ShoppingBag, Truck, ShieldCheck, Heart, Download, FileText, CheckCircle2, Sparkles, Lock
 } from 'lucide-react';
 import { SharedHeader } from './SharedHeader';
+import { downloadFile } from '../utils/download';
 
 interface OrderTrackerScreenProps {
   orders: Order[];
@@ -46,14 +47,7 @@ export const OrderTrackerScreen: React.FC<OrderTrackerScreenProps> = ({
   };
 
   const handleDownload = (fileUrl: string, fileName?: string) => {
-    try {
-      // Use the server-side proxy for more reliable downloads (handles CORS and base64 correctly)
-      const proxyUrl = `/api/download?url=${encodeURIComponent(fileUrl)}&filename=${encodeURIComponent(fileName || 'digital_product')}`;
-      window.location.href = proxyUrl;
-    } catch (err) {
-      console.error('Download failed:', err);
-      window.open(fileUrl, '_blank');
-    }
+    downloadFile(fileUrl, fileName);
   };
 
   const getStatusSteps = (status: string) => {
@@ -256,47 +250,93 @@ export const OrderTrackerScreen: React.FC<OrderTrackerScreenProps> = ({
                       </div>
                     )}
 
-                    {/* License Key Delivery Content */}
-                    {ord.license_key_delivered && (
-                      <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl text-xs space-y-2">
-                        <div className="font-extrabold text-emerald-400 flex items-center gap-1.5">
-                          <Zap className="w-4 h-4 text-amber-400 animate-bounce" />
-                          <span>আপনার লাইসেন্স কী / ডেলিভারি কন্টেন্ট:</span>
-                        </div>
-                        <div className="flex items-center justify-between bg-slate-950 p-3 rounded-xl border border-slate-800 font-mono text-emerald-300 font-bold text-xs">
-                          <span className="break-all">{ord.license_key_delivered}</span>
-                          <button
-                            onClick={() => handleCopyKey(ord.license_key_delivered!)}
-                            className="ml-3 p-1 text-slate-400 hover:text-white cursor-pointer shrink-0 bg-slate-900 rounded hover:bg-slate-800"
-                            title="Copy Delivered Content"
-                          >
-                            {copiedKey ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-                          </button>
-                        </div>
-                      </div>
-                    )}
+                    {/* Digital Delivery Status */}
+                    {ord.order_type === 'digital' && (
+                      (() => {
+                        const isApproved = ord.status === 'completed';
+                        
+                        if (!isApproved) {
+                          return (
+                            <div className="p-4 bg-amber-500/10 border border-amber-500/25 rounded-2xl text-xs space-y-2">
+                              <div className="font-extrabold text-amber-400 flex items-center justify-between">
+                                <div className="flex items-center gap-1.5">
+                                  <Clock className="w-4 h-4 text-amber-400 animate-pulse" />
+                                  <span>পেমেন্ট ভেরিফিকেশন অপেক্ষমাণ (Pending Admin Approval)</span>
+                                </div>
+                                <span className="text-[10px] bg-amber-950/90 text-amber-300 border border-amber-800/60 px-2 py-0.5 rounded-full font-bold inline-flex items-center gap-1">
+                                  <Lock className="w-2.5 h-2.5" />
+                                  <span>লকড</span>
+                                </span>
+                              </div>
+                              <p className="text-[11px] text-slate-300 leading-relaxed">
+                                আপনার পেমেন্ট তথ্য (TrxID: <span className="font-mono text-amber-300 font-bold">{ord.trx_id || 'N/A'}</span>) গ্রহণ করা হয়েছে। এডমিন TrxID যাচাই করে অ্যাপ্রুভ করার সাথে সাথেই আপনার ডাউনলোড ফাইল ও অ্যাক্টিভেশন লাইসেন্স কী এখানে স্বয়ংক্রিয়ভাবে সক্রিয় হয়ে যাবে।
+                              </p>
+                              {ord.download_file_url && (
+                                <div className="flex items-center justify-between bg-slate-950/80 p-3 rounded-xl border border-slate-800 opacity-60">
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <FileText className="w-4 h-4 text-slate-500" />
+                                    <span className="font-bold text-slate-400 truncate">{ord.file_name || 'ডিজিটাল ডাউনলোড ফাইল'}</span>
+                                  </div>
+                                  <button
+                                    disabled
+                                    className="px-3 py-1 bg-slate-800 text-slate-500 font-bold rounded-lg flex items-center gap-1.5 cursor-not-allowed text-[11px]"
+                                  >
+                                    <Lock className="w-3.5 h-3.5 text-amber-500/60" />
+                                    <span>অনুমোদন সাপেক্ষে</span>
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        }
 
-                    {/* Download File Content */}
-                    {ord.download_file_url && (
-                      <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-2xl text-xs space-y-2">
-                        <div className="font-extrabold text-blue-400 flex items-center gap-1.5">
-                          <Download className="w-4 h-4 text-blue-400" />
-                          <span>আপনার ডাউনলোড ফাইল:</span>
-                        </div>
-                        <div className="flex items-center justify-between bg-slate-950 p-3 rounded-xl border border-slate-800">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <FileText className="w-4 h-4 text-slate-500" />
-                            <span className="font-bold text-slate-300 truncate">{ord.file_name || 'Downloadable File'}</span>
+                        return (
+                          <div className="space-y-3">
+                            {/* License Key Delivery Content */}
+                            {ord.license_key_delivered && (
+                              <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl text-xs space-y-2">
+                                <div className="font-extrabold text-emerald-400 flex items-center gap-1.5">
+                                  <Zap className="w-4 h-4 text-amber-400 animate-bounce" />
+                                  <span>আপনার লাইসেন্স কী / ডেলিভারি কন্টেন্ট:</span>
+                                </div>
+                                <div className="flex items-center justify-between bg-slate-950 p-3 rounded-xl border border-slate-800 font-mono text-emerald-300 font-bold text-xs">
+                                  <span className="break-all">{ord.license_key_delivered}</span>
+                                  <button
+                                    onClick={() => handleCopyKey(ord.license_key_delivered!)}
+                                    className="ml-3 p-1.5 text-slate-400 hover:text-white cursor-pointer shrink-0 bg-slate-900 rounded-lg hover:bg-slate-800 border border-slate-800"
+                                    title="Copy Delivered Content"
+                                  >
+                                    {copiedKey ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Download File Content */}
+                            {ord.download_file_url && (
+                              <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-2xl text-xs space-y-2">
+                                <div className="font-extrabold text-blue-400 flex items-center gap-1.5">
+                                  <Download className="w-4 h-4 text-blue-400" />
+                                  <span>আপনার ডাউনলোড ফাইল:</span>
+                                </div>
+                                <div className="flex items-center justify-between bg-slate-950 p-3 rounded-xl border border-slate-800">
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <FileText className="w-4 h-4 text-slate-500" />
+                                    <span className="font-bold text-slate-300 truncate">{ord.file_name || 'Downloadable File'}</span>
+                                  </div>
+                                  <button
+                                    onClick={() => handleDownload(ord.download_file_url!, ord.file_name)}
+                                    className="ml-3 px-3.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1.5 shadow-md shadow-blue-600/30 active:scale-95"
+                                  >
+                                    <Download className="w-3.5 h-3.5" />
+                                    <span>ডাউনলোড</span>
+                                  </button>
+                                </div>
+                              </div>
+                            )}
                           </div>
-                          <button
-                            onClick={() => handleDownload(ord.download_file_url!, ord.file_name)}
-                            className="ml-3 px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1.5 shadow-md"
-                          >
-                            <Download className="w-3.5 h-3.5" />
-                            <span>ডাউনলোড</span>
-                          </button>
-                        </div>
-                      </div>
+                        );
+                      })()
                     )}
                   </div>
                 );

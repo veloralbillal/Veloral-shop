@@ -120,6 +120,38 @@ export const CheckoutScreen: React.FC<CheckoutScreenProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
+  // Processing Animation & Countdown Timer
+  const [isProcessingTimer, setIsProcessingTimer] = useState(false);
+  const [countdown, setCountdown] = useState(4);
+  const [processingStatusText, setProcessingStatusText] = useState('পেমেন্ট ও অর্ডার যাচাই হচ্ছে...');
+  const [pendingCreatedOrder, setPendingCreatedOrder] = useState<Order | null>(null);
+
+  // Countdown timer effect
+  useEffect(() => {
+    if (!isProcessingTimer) return;
+
+    if (countdown > 0) {
+      const timer = setTimeout(() => {
+        setCountdown((prev) => {
+          const next = prev - 1;
+          if (next === 3) setProcessingStatusText('১/৩: পেমেন্ট ও প্রেরক তথ্য ভেরিফাই হচ্ছে...');
+          else if (next === 2) setProcessingStatusText('২/৩: ডাটাবেজে সিকিউর অর্ডার ও ইনভয়েস তৈরি হচ্ছে...');
+          else if (next === 1) setProcessingStatusText('৩/৩: সিস্টেম রেকর্ড সংরক্ষণ ও কনফার্মেশন সম্পন্ন হচ্ছে...');
+          else if (next === 0) setProcessingStatusText('✓ সফল হয়েছে! অর্ডার ট্র্যাকিং পেজে নিয়ে যাওয়া হচ্ছে...');
+          return next;
+        });
+      }, 900);
+      return () => clearTimeout(timer);
+    } else if (countdown === 0 && pendingCreatedOrder) {
+      const finishTimer = setTimeout(() => {
+        setIsProcessingTimer(false);
+        setIsSubmitting(false);
+        onOrderSuccess(pendingCreatedOrder);
+      }, 600);
+      return () => clearTimeout(finishTimer);
+    }
+  }, [isProcessingTimer, countdown, pendingCreatedOrder, onOrderSuccess]);
+
   // Fetch Coupons, Address and ZiniPay Callback on Mount
   useEffect(() => {
     fetchCoupons().then(setCoupons);
@@ -360,9 +392,10 @@ export const CheckoutScreen: React.FC<CheckoutScreenProps> = ({
       const productCode = digitalProduct?.product_code;
       const licenseKey = digitalProduct?.digital_payload;
       
-      const isInstantDigital = (orderType === 'digital' && paymentMethod !== 'cod') || paymentMethod === 'wallet';
+      // ONLY wallet payment is instantly completed! Manual bKash/Nagad/Rocket/COD are strictly pending!
+      const isInstantDigital = paymentMethod === 'wallet';
 
-      const created = await onSubmitOrder({
+      const orderPromise = onSubmitOrder({
         order_type: orderType,
         customer_name: customerName.trim(),
         customer_phone: customerPhone.trim(),
@@ -385,11 +418,17 @@ export const CheckoutScreen: React.FC<CheckoutScreenProps> = ({
         notes: notes.trim() || undefined,
       });
 
-      onOrderSuccess(created);
+      // Show interactive processing countdown timer modal
+      setIsProcessingTimer(true);
+      setCountdown(4);
+      setProcessingStatusText('১/৩: পেমেন্ট ট্রানজেকশন (TrxID) তথ্য যাচাই হচ্ছে...');
+
+      const created = await orderPromise;
+      setPendingCreatedOrder(created);
     } catch (err: any) {
-      setErrorMsg(err.message || 'অর্ডার সাবমিট করতে সমস্যা হয়েছে, অনুগ্রহ করে আবার চেষ্টা করুন।');
-    } finally {
+      setIsProcessingTimer(false);
       setIsSubmitting(false);
+      setErrorMsg(err.message || 'অর্ডার সাবমিট করতে সমস্যা হয়েছে, অনুগ্রহ করে আবার চেষ্টা করুন।');
     }
   };
 
@@ -934,6 +973,87 @@ export const CheckoutScreen: React.FC<CheckoutScreenProps> = ({
         </div>
 
       </div>
+
+      {/* Interactive Processing Countdown Animation Modal */}
+      {isProcessingTimer && (
+        <div className="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-slate-900 border border-blue-500/30 rounded-3xl p-6 sm:p-8 max-w-sm w-full shadow-2xl text-center space-y-6 relative overflow-hidden animate-in zoom-in-95 duration-200">
+            {/* Ambient background glow */}
+            <div className="absolute -top-12 -left-12 w-36 h-36 bg-blue-600/20 rounded-full blur-2xl pointer-events-none" />
+            <div className="absolute -bottom-12 -right-12 w-36 h-36 bg-emerald-600/20 rounded-full blur-2xl pointer-events-none" />
+
+            {/* Countdown circular display */}
+            <div className="relative w-24 h-24 mx-auto flex items-center justify-center">
+              <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
+                <circle
+                  cx="50"
+                  cy="50"
+                  r="42"
+                  stroke="currentColor"
+                  strokeWidth="8"
+                  fill="transparent"
+                  className="text-slate-800"
+                />
+                <circle
+                  cx="50"
+                  cy="50"
+                  r="42"
+                  stroke="currentColor"
+                  strokeWidth="8"
+                  fill="transparent"
+                  strokeDasharray={264}
+                  strokeDashoffset={264 - (264 * (4 - countdown)) / 4}
+                  strokeLinecap="round"
+                  className="text-blue-500 transition-all duration-700 ease-out"
+                />
+              </svg>
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                {countdown > 0 ? (
+                  <span className="text-3xl font-black font-mono text-white animate-pulse">
+                    {countdown}
+                  </span>
+                ) : (
+                  <CheckCircle2 className="w-10 h-10 text-emerald-400 animate-in zoom-in duration-300" />
+                )}
+              </div>
+            </div>
+
+            {/* Status texts */}
+            <div className="space-y-2">
+              <h3 className="text-lg font-black text-white flex items-center justify-center gap-2">
+                <span>{countdown === 0 ? 'অর্ডার নিশ্চিত হয়েছে!' : 'পেমেন্ট ও অর্ডার যাচাই হচ্ছে...'}</span>
+              </h3>
+              <p className="text-xs text-blue-300/90 font-medium min-h-[32px] flex items-center justify-center">
+                {processingStatusText}
+              </p>
+            </div>
+
+            {/* Payment badge details */}
+            <div className="bg-slate-950/70 p-3 rounded-2xl border border-slate-800/80 text-[11px] space-y-1.5">
+              <div className="flex justify-between items-center text-slate-400">
+                <span>পেমেন্ট মেথড:</span>
+                <span className="font-bold text-white uppercase">{paymentMethod}</span>
+              </div>
+              <div className="flex justify-between items-center text-slate-400">
+                <span>মোট পরিশোধিত:</span>
+                <span className="font-bold text-emerald-400 font-mono">৳{finalTotalAmount.toLocaleString()}</span>
+              </div>
+              {trxId && (
+                <div className="flex justify-between items-center text-slate-400">
+                  <span>TrxID:</span>
+                  <span className="font-mono text-amber-300 truncate max-w-[150px]">{trxId}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Trust badge */}
+            <div className="flex items-center justify-center gap-1.5 text-[10px] text-slate-500">
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+              <span>নিরাপদ ও এনক্রিপ্টেড ডাটাবেজ প্রসেসিং</span>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

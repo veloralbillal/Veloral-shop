@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { User, Order } from '../../types';
-import { ArrowLeft, Key, Copy, Check, ShieldCheck, Zap, AlertCircle, Download, FileText, ExternalLink, Tag } from 'lucide-react';
+import { ArrowLeft, Key, Copy, Check, ShieldCheck, Zap, AlertCircle, Download, FileText, ExternalLink, Tag, Lock, Clock } from 'lucide-react';
 import { SharedHeader } from '../SharedHeader';
+import { downloadFile } from '../../utils/download';
 
 interface MyLicensesScreenProps {
   currentUser: User;
@@ -35,15 +36,7 @@ export const MyLicensesScreen: React.FC<MyLicensesScreenProps> = ({
       setDownloadingId(orderId);
       setTimeout(() => setDownloadingId(null), 2000);
     }
-
-    try {
-      // Use the server-side proxy for more reliable downloads (handles CORS and base64 correctly)
-      const proxyUrl = `/api/download?url=${encodeURIComponent(fileUrl)}&filename=${encodeURIComponent(fileName || 'digital_product')}`;
-      window.location.href = proxyUrl;
-    } catch (err) {
-      console.error('Download failed:', err);
-      window.open(fileUrl, '_blank');
-    }
+    downloadFile(fileUrl, fileName);
   };
 
   return (
@@ -76,6 +69,7 @@ export const MyLicensesScreen: React.FC<MyLicensesScreenProps> = ({
         ) : (
           <div className="space-y-4">
             {myLicenses.map((o, idx) => {
+              const isApproved = o.status === 'completed';
               const hasFile = Boolean(o.download_file_url);
               const hasKey = Boolean(o.license_key_delivered);
               const isDownloading = downloadingId === o.id;
@@ -93,9 +87,16 @@ export const MyLicensesScreen: React.FC<MyLicensesScreenProps> = ({
                             <span>#{o.product_code}</span>
                           </span>
                         )}
-                        <span className="text-[10px] font-bold text-emerald-400 bg-emerald-950/70 border border-emerald-800/40 px-2 py-0.5 rounded-md">
-                          ✓ Access Granted (Paid)
-                        </span>
+                        {isApproved ? (
+                          <span className="text-[10px] font-bold text-emerald-400 bg-emerald-950/70 border border-emerald-800/40 px-2 py-0.5 rounded-md">
+                            ✓ Access Granted (Paid)
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-bold text-amber-400 bg-amber-950/70 border border-amber-800/40 px-2 py-0.5 rounded-md inline-flex items-center gap-1">
+                            <Clock className="w-2.5 h-2.5 animate-pulse" />
+                            <span>⏳ অপেক্ষমাণ (Pending Verification)</span>
+                          </span>
+                        )}
                       </div>
                       <h3 className="font-extrabold text-slate-100 text-sm sm:text-base leading-snug">
                         {o.items_summary}
@@ -110,6 +111,18 @@ export const MyLicensesScreen: React.FC<MyLicensesScreenProps> = ({
                     </div>
                   </div>
 
+                  {!isApproved && (
+                    <div className="p-3.5 bg-amber-500/10 border border-amber-500/20 rounded-2xl text-xs space-y-1">
+                      <div className="font-bold text-amber-400 flex items-center gap-1.5">
+                        <Lock className="w-3.5 h-3.5" />
+                        <span>পেমেন্ট অ্যাপ্রুভাল অপেক্ষমাণ</span>
+                      </div>
+                      <p className="text-[11px] text-slate-400">
+                        এডমিন TrxID যাচাই করে অর্ডারটি অনুমোদন (Approve) করার পর ডাউনলোড ফাইল ও লাইসেন্স কী সক্রিয় হবে।
+                      </p>
+                    </div>
+                  )}
+
                   {/* Digital File Download Action (If File Exists) */}
                   {hasFile && (
                     <div className="p-3.5 bg-gradient-to-r from-blue-950/50 to-indigo-950/50 border border-blue-800/40 rounded-2xl space-y-2.5">
@@ -121,28 +134,38 @@ export const MyLicensesScreen: React.FC<MyLicensesScreenProps> = ({
                               {o.file_name || 'Software Setup File'}
                             </span>
                             <span className="text-[10px] text-blue-300/80 block">
-                              Ready for direct secure download
+                              {isApproved ? 'Ready for direct secure download' : 'লকড — এডমিন অনুমোদনের পর ডাউনলোড সক্রিয় হবে'}
                             </span>
                           </div>
                         </div>
 
-                        <button
-                          onClick={() => handleDownload(o.download_file_url!, o.file_name, o.id)}
-                          className={`px-4 py-2 text-xs font-black rounded-xl cursor-pointer shadow-md transition-all flex items-center gap-1.5 shrink-0 active:scale-95 ${
-                            isDownloading
-                              ? 'bg-emerald-600 text-white'
-                              : 'bg-blue-600 hover:bg-blue-500 text-white hover:shadow-blue-500/20'
-                          }`}
-                        >
-                          <Download className="w-3.5 h-3.5" />
-                          <span>{isDownloading ? 'Downloading...' : '📥 Download File'}</span>
-                        </button>
+                        {isApproved ? (
+                          <button
+                            onClick={() => handleDownload(o.download_file_url!, o.file_name, o.id)}
+                            className={`px-4 py-2 text-xs font-black rounded-xl cursor-pointer shadow-md transition-all flex items-center gap-1.5 shrink-0 active:scale-95 ${
+                              isDownloading
+                                ? 'bg-emerald-600 text-white'
+                                : 'bg-blue-600 hover:bg-blue-500 text-white hover:shadow-blue-500/20'
+                            }`}
+                          >
+                            <Download className="w-3.5 h-3.5" />
+                            <span>{isDownloading ? 'Downloading...' : '📥 Download File'}</span>
+                          </button>
+                        ) : (
+                          <button
+                            disabled
+                            className="px-4 py-2 text-xs font-bold rounded-xl bg-slate-800 text-slate-500 cursor-not-allowed flex items-center gap-1.5 shrink-0"
+                          >
+                            <Lock className="w-3.5 h-3.5 text-amber-500/60" />
+                            <span>লকড</span>
+                          </button>
+                        )}
                       </div>
                     </div>
                   )}
 
                   {/* License Key Access Box (If Key Exists) */}
-                  {hasKey && (
+                  {isApproved && hasKey && (
                     <div className="space-y-1.5 text-xs">
                       <div className="flex items-center justify-between text-slate-400 font-bold">
                         <span className="flex items-center gap-1">
