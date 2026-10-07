@@ -186,6 +186,8 @@ export default function App() {
       setIsLoadingData(false);
     }, 5000);
 
+    const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
     try {
       // Non-blocking background database verification
       initializeDatabaseTables().catch(() => {});
@@ -195,7 +197,7 @@ export default function App() {
         try {
           const result = await Promise.race([
             task,
-            new Promise((_, reject) => setTimeout(() => reject(new Error('Fetch Timeout')), 8000))
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Fetch Timeout')), 15000))
           ]);
           if (result) setter(result);
           return result;
@@ -218,20 +220,20 @@ export default function App() {
           };
           setSettings(latestSettings);
         }),
-        fetchTask(fetchEvents(), (evts) => {
+        (async () => { await delay(50); return fetchTask(fetchEvents(), (evts) => {
           if (evts && evts.length > 0) setSettings(prev => ({ ...prev, events: evts }));
-        }),
-        fetchTask(fetchCategories(), (cats) => {
+        }); })(),
+        (async () => { await delay(100); return fetchTask(fetchCategories(), (cats) => {
           if (cats && cats.length > 0) setSettings(prev => ({ ...prev, custom_categories: cats }));
-        }),
-        fetchTask(fetchSubCategories(), (subCats) => {
+        }); })(),
+        (async () => { await delay(150); return fetchTask(fetchSubCategories(), (subCats) => {
           if (subCats && subCats.length > 0) setSettings(prev => ({ ...prev, sub_categories: subCats }));
-        }),
-        fetchTask(fetchProducts(), setProducts),
-        fetchTask(fetchOrders(), setOrders),
-        fetchTask(fetchAliExpressOrders(), setAliExpressOrders),
-        fetchTask(fetchUsers(), setUsers),
-        fetchTask(fetchReviews(), setReviews)
+        }); })(),
+        (async () => { await delay(200); return fetchTask(fetchProducts(), setProducts); })(),
+        (async () => { await delay(250); return fetchTask(fetchOrders(), setOrders); })(),
+        (async () => { await delay(300); return fetchTask(fetchAliExpressOrders(), setAliExpressOrders); })(),
+        (async () => { await delay(350); return fetchTask(fetchUsers(), setUsers); })(),
+        (async () => { await delay(400); return fetchTask(fetchReviews(), setReviews); })()
       ]);
 
       fetchAffiliateProducts().then(setAffiliateProducts).catch(() => {});

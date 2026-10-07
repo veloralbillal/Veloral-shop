@@ -32,7 +32,7 @@ if (!fs.existsSync(CACHE_DIR)) {
   fs.mkdirSync(CACHE_DIR, { recursive: true });
 }
 
-const CACHE_TTL = 60 * 5; // 5 minutes cache for read queries
+const CACHE_TTL = 0; // Disable caching to ensure 100% real-time data consistency between Code Edit Preview and Production Preview
 const inMemoryCache = new Map<string, { data: any; expiresAt: number }>();
 
 function getCacheKey(sql: string, params: any) {
@@ -74,7 +74,15 @@ setInterval(() => {
 
 // Proxy route for MySQL DB Bridge
 app.post('/api/db', async (req: Request, res: Response) => {
-  const { action, sql, token = DEFAULT_TOKEN, db_host = 'localhost', db_name, db_user, db_pass } = req.body;
+  const { 
+    action, 
+    sql, 
+    token = DEFAULT_TOKEN, 
+    db_host = 'localhost', 
+    db_name = 'veloralb_Digital', 
+    db_user = 'veloralb_Digital', 
+    db_pass 
+  } = req.body;
 
   // Basic rate limiting by IP
   const ip = req.ip || 'unknown';

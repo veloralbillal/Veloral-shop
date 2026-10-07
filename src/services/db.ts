@@ -126,7 +126,15 @@ export async function executeQuery<T = any>(sql: string): Promise<{ success: boo
       const res = await fetch('./api/db', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'query', sql }),
+        body: JSON.stringify({ 
+          action: 'query', 
+          sql,
+          token: cfg.token || DEFAULT_CONFIG.token,
+          db_host: cfg.dbHost || DEFAULT_CONFIG.dbHost,
+          db_name: cfg.dbName || DEFAULT_CONFIG.dbName,
+          db_user: cfg.dbUser || DEFAULT_CONFIG.dbUser,
+          db_pass: cfg.dbPass
+        }),
         signal: controller.signal
       });
       clearTimeout(timeoutId);
