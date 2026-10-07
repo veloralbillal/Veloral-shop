@@ -17,19 +17,25 @@ const LOCAL_STORAGE_KEYS = {
 };
 
 /**
- * Robust localStorage setter with QuotaExceededError protection.
- * If quota is exceeded, it attempts to store a smaller subset or clears the key.
+ * Robust localStorage setter with QuotaExceededError protection and base64 stripping.
  */
 function safeSetItem(key: string, value: any) {
   try {
     localStorage.setItem(key, JSON.stringify(value));
   } catch (e: any) {
     if (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED') {
-      console.warn(`LocalStorage quota exceeded for ${key}. Cleaning up and truncating.`);
       try {
         if (Array.isArray(value)) {
-          // Store only the most recent/essential 5 items as a more aggressive fallback
-          localStorage.setItem(key, JSON.stringify(value.slice(0, 5)));
+          if (key === LOCAL_STORAGE_KEYS.PRODUCTS) {
+            const lightProducts = value.map((p: any) => ({
+              ...p,
+              image_url: p.image_url && p.image_url.startsWith('data:') ? 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600' : p.image_url,
+              download_file_url: p.download_file_url && p.download_file_url.startsWith('data:') ? '' : p.download_file_url
+            }));
+            localStorage.setItem(key, JSON.stringify(lightProducts));
+            return;
+          }
+          localStorage.setItem(key, JSON.stringify(value.slice(0, 20)));
         } else {
           localStorage.removeItem(key);
         }
