@@ -1,6 +1,25 @@
 <!doctype html>
 <html lang="en">
   <head>
+    <script>
+      // Prevent harmless sandbox environment HMR WebSocket disconnect messages before any other script runs
+      window.addEventListener('unhandledrejection', function(event) {
+        var reason = event.reason;
+        var message = typeof reason === 'string' ? reason : (reason && reason.message) || String(reason || '');
+        if (message.indexOf('WebSocket') !== -1 || message.indexOf('closed without opened') !== -1 || message.indexOf('failed to connect to websocket') !== -1) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
+      }, true);
+
+      window.addEventListener('error', function(event) {
+        var message = event.message || '';
+        if (message.indexOf('WebSocket') !== -1 || message.indexOf('closed without opened') !== -1) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
+      }, true);
+    </script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Veloral Digital & Shop</title>

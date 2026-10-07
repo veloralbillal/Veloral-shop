@@ -221,7 +221,7 @@ export async function initializeDatabaseTables(force: boolean = false): Promise<
     return { success: true, message: 'All tables already verified in session' };
   }
   try {
-    if (!force && sessionStorage.getItem('veloral_db_tables_ready') === 'true') {
+    if (!force && (sessionStorage.getItem('veloral_db_tables_ready') === 'true' || localStorage.getItem('veloral_db_tables_ready') === 'true')) {
       isTablesInitialized = true;
       return { success: true, message: 'All tables verified' };
     }
@@ -491,6 +491,7 @@ export async function initializeDatabaseTables(force: boolean = false): Promise<
     isTablesInitialized = true;
     try {
       sessionStorage.setItem('veloral_db_tables_ready', 'true');
+      localStorage.setItem('veloral_db_tables_ready', 'true');
     } catch {}
   }
 

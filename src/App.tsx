@@ -189,9 +189,6 @@ export default function App() {
     const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
     try {
-      // Non-blocking background database verification
-      initializeDatabaseTables().catch(() => {});
-
       // Use individual try-catches with a race timeout to ensure one slow/failing query doesn't block everything
       const fetchTask = async (task: Promise<any>, setter: (val: any) => void) => {
         try {
@@ -235,6 +232,11 @@ export default function App() {
         (async () => { await delay(350); return fetchTask(fetchUsers(), setUsers); })(),
         (async () => { await delay(400); return fetchTask(fetchReviews(), setReviews); })()
       ]);
+
+      // Non-blocking background database verification after loading critical UI data
+      setTimeout(() => {
+        initializeDatabaseTables().catch(() => {});
+      }, 1000);
 
       fetchAffiliateProducts().then(setAffiliateProducts).catch(() => {});
       
