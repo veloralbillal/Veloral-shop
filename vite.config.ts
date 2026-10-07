@@ -4,10 +4,8 @@ import path from 'path';
 import {defineConfig} from 'vite';
 
 export default defineConfig(({ command }) => {
-  const base = '/Veloral-shop/';
-
   return {
-    base,
+    base: './',
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {

@@ -33,27 +33,34 @@
           const debug = document.getElementById('debug-info');
           const updateDebug = (msg) => { if(debug) debug.innerHTML += '<div>' + msg + '</div>'; };
           
+          updateDebug('URL: ' + window.location.href);
           updateDebug('Path: ' + window.location.pathname);
-          updateDebug('Base: /Veloral-shop/');
 
-          // If React doesn't take over in 8 seconds, show recovery actions
+          // If React doesn't take over in 10 seconds, show recovery actions
           const timer = setTimeout(function() {
             if (document.getElementById('loading-spinner')) {
               document.getElementById('loading-spinner').style.display = 'none';
               document.getElementById('app-logo').style.display = 'flex';
-              document.getElementById('fallback-msg').innerText = 'লোডিং হচ্ছে না? ব্যাকআপ থেকে শুরু করতে নিচের বাটনে চাপুন।';
+              document.getElementById('fallback-msg').innerText = 'লোডিং হচ্ছে না? রিসেট করে পুনরায় চেষ্টা করুন।';
               document.getElementById('recovery-actions').style.display = 'block';
               updateDebug('Status: Load Timeout');
             }
-          }, 8000);
+          }, 10000);
 
           window.onerror = function(msg, url, line) {
-            console.error("Critical Error:", msg, "at", url, ":", line);
             const status = document.getElementById('error-status');
-            if (status) status.innerText = "Runtime Error: " + msg.substring(0, 40);
+            if (status) status.innerText = "Error: " + msg.substring(0, 40);
             updateDebug('Err: ' + msg);
-            updateDebug('Src: ' + url.split('/').pop());
+            updateDebug('Src: ' + (url ? url.split('/').pop() : 'unknown'));
             return false;
+          };
+
+          window.handleScriptError = function(script) {
+            updateDebug('Failed to load: ' + script.src);
+            const status = document.getElementById('error-status');
+            if (status) status.innerText = "ফাইল লোড ব্যর্থ (Network/Path Issue)";
+            document.getElementById('recovery-actions').style.display = 'block';
+            document.getElementById('loading-spinner').style.display = 'none';
           };
 
           // Mark as loaded when React starts
@@ -64,6 +71,6 @@
         })();
       </script>
     </div>
-    <script type="module" src="/src/main.tsx"></script>
+    <script type="module" src="./src/main.tsx" onerror="window.handleScriptError(this)"></script>
   </body>
 </html>
