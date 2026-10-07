@@ -88,41 +88,50 @@ export function saveDbConfig(cfg: Partial<DbConfig>) {
 
 // Track whether backend proxy (/api/db) is available in this deployment
 let hasBackendProxy: boolean | null = null;
+let proxyCheckInProgress: Promise<boolean> | null = null;
+
+async function checkProxy(): Promise<boolean> {
+  if (hasBackendProxy !== null) return hasBackendProxy;
+  if (proxyCheckInProgress) return proxyCheckInProgress;
+  
+  proxyCheckInProgress = (async () => {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 2000);
+      const res = await fetch('/api/db', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'query', sql: 'SELECT 1' }),
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+      hasBackendProxy = res.ok && (res.headers.get('content-type') || '').includes('application/json');
+    } catch {
+      hasBackendProxy = false;
+    }
+    return hasBackendProxy;
+  })();
+  return proxyCheckInProgress;
+}
 
 // Low-level query executor supporting both preview (Node.js proxy) and production static deployment (direct PHP bridge)
 export async function executeQuery<T = any>(sql: string): Promise<{ success: boolean; data?: T[]; message?: string; insert_id?: number }> {
   const cfg = getDbConfig();
 
-  // 1. Try backend proxy route (/api/db) only if not known to be unavailable
-  if (hasBackendProxy !== false) {
+  // 1. Try backend proxy route (/api/db)
+  if (await checkProxy()) {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 4000);
-
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
       const res = await fetch('/api/db', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'query',
-          sql,
-        }),
-        signal: controller.signal,
+        body: JSON.stringify({ action: 'query', sql }),
+        signal: controller.signal
       });
       clearTimeout(timeoutId);
-
-      const contentType = res.headers.get('content-type') || '';
-      if (res.ok && contentType.includes('application/json')) {
-        hasBackendProxy = true;
-        const json = await res.json();
-        return json;
-      } else {
-        // Returned HTML (e.g. 404 SPA fallback on static hosting)
-        hasBackendProxy = false;
-      }
-    } catch (err) {
-      // Backend proxy route unavailable or timed out (e.g. static hosting on GitHub Pages, Netlify, cPanel)
-      hasBackendProxy = false;
-    }
+      if (res.ok) return await res.json();
+    } catch {}
   }
 
   // 2. Direct CORS connection to remote PHP Bridge (https://api.veloralbillal.top/db_bridge.php)
@@ -138,7 +147,7 @@ export async function executeQuery<T = any>(sql: string): Promise<{ success: boo
       if (cfg.dbPass) postData.append('db_pass', cfg.dbPass);
 
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 12000); // 12 seconds timeout for cross-domain queries
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // Shorter bridge timeout
 
       const bridgeRes = await fetch(cfg.bridgeUrl, {
         method: 'POST',
@@ -151,14 +160,13 @@ export async function executeQuery<T = any>(sql: string): Promise<{ success: boo
       if (bridgeRes.ok) {
         const text = await bridgeRes.text();
         try {
-          const parsed = JSON.parse(text);
-          return parsed;
-        } catch (jsonErr) {
-          console.warn('Bridge returned non-JSON:', text.slice(0, 150));
+          return JSON.parse(text);
+        } catch {
+          console.warn('Bridge returned non-JSON');
         }
       }
-    } catch (bridgeErr: any) {
-      console.warn('Direct bridge connection error:', bridgeErr);
+    } catch (bridgeErr) {
+      console.warn('Bridge connection error:', bridgeErr);
     }
   }
 

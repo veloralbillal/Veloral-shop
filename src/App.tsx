@@ -62,11 +62,18 @@ export default function App() {
   const [activeCategory, setActiveCategory] = useState<ProductCategory>('all');
   const [activeSubCategory, setActiveSubCategory] = useState<string>('all');
   const [activePromoFilter, setActivePromoFilter] = useState<'all' | 'flash_sale' | 'hot_sale' | 'for_you' | 'loot_offer' | 'featured'>('all');
-  const [products, setProducts] = useState<Product[]>(getLocalProducts());
+  const [products, setProducts] = useState<Product[]>(() => {
+    try {
+      const p = getLocalProducts();
+      return Array.isArray(p) ? p : INITIAL_PRODUCTS;
+    } catch {
+      return INITIAL_PRODUCTS;
+    }
+  });
   const [affiliateProducts, setAffiliateProducts] = useState<AffiliateProduct[]>([]);
-  const [accounts, setAccounts] = useState<AccountItem[]>(fetchAccounts());
-  const [offers, setOffers] = useState<OfferItem[]>(fetchOffers());
-  const [offerSubmissions, setOfferSubmissions] = useState<OfferSubmission[]>(fetchOfferSubmissions());
+  const [accounts, setAccounts] = useState<AccountItem[]>(() => fetchAccounts());
+  const [offers, setOffers] = useState<OfferItem[]>(() => fetchOffers());
+  const [offerSubmissions, setOfferSubmissions] = useState<OfferSubmission[]>(() => fetchOfferSubmissions());
   const [orders, setOrders] = useState<Order[]>(() => {
     try {
       const o = getLocalOrders();
@@ -147,48 +154,59 @@ export default function App() {
     }
   });
   const [lastPopupId, setLastPopupId] = useState<string | null>(null);
-  const [isLoadingData, setIsLoadingData] = useState(false);
+  const [isLoadingData, setIsLoadingData] = useState(() => {
+    try {
+      return sessionStorage.getItem('veloral_data_loaded') !== 'true';
+    } catch {
+      return true;
+    }
+  });
 
   const loadData = async () => {
     try {
       // Non-blocking background database verification
       initializeDatabaseTables().catch(() => {});
 
-      const [sett, evts, cats, subCats, prods, ords, aliOrds, usrs, revs] = await Promise.all([
-        fetchStoreSettings(),
-        fetchEvents(),
-        fetchCategories(),
-        fetchSubCategories(),
-        fetchProducts(),
-        fetchOrders(),
-        fetchAliExpressOrders(),
-        fetchUsers(),
-        fetchReviews()
-      ]);
-
-      const mergedSettings = {
-        ...sett,
-        events: (evts && evts.length > 0) ? evts : (sett.events && sett.events.length > 0 ? sett.events : INITIAL_SETTINGS.events),
-        custom_categories: (cats && cats.length > 0) ? cats : (sett.custom_categories && sett.custom_categories.length > 0 ? sett.custom_categories : INITIAL_SETTINGS.custom_categories),
-        sub_categories: (subCats && subCats.length > 0) ? subCats : (sett.sub_categories && sett.sub_categories.length > 0 ? sett.sub_categories : INITIAL_SETTINGS.sub_categories)
+      // Use individual try-catches to ensure one slow/failing query doesn't block everything
+      const fetchTask = async (task: Promise<any>, setter: (val: any) => void) => {
+        try {
+          const result = await task;
+          if (result) setter(result);
+          return result;
+        } catch (e) {
+          console.error('Fetch task failed:', e);
+          return null;
+        }
       };
-      setSettings(mergedSettings);
 
-      if (prods && prods.length > 0) {
-        setProducts(prods);
-      }
-      if (ords && ords.length > 0) {
-        setOrders(ords);
-      }
-      if (aliOrds && aliOrds.length > 0) {
-        setAliExpressOrders(aliOrds);
-      }
-      if (usrs && usrs.length > 0) {
-        setUsers(usrs);
-      }
-      if (revs && revs.length > 0) {
-        setReviews(revs);
-      }
+      let latestSettings = settings;
+
+      await Promise.all([
+        fetchTask(fetchStoreSettings(), (sett) => {
+          latestSettings = {
+            ...settings,
+            ...sett,
+            events: (sett.events && sett.events.length > 0) ? sett.events : settings.events,
+            custom_categories: (sett.custom_categories && sett.custom_categories.length > 0) ? sett.custom_categories : settings.custom_categories,
+            sub_categories: (sett.sub_categories && sett.sub_categories.length > 0) ? sett.sub_categories : settings.sub_categories
+          };
+          setSettings(latestSettings);
+        }),
+        fetchTask(fetchEvents(), (evts) => {
+          if (evts && evts.length > 0) setSettings(prev => ({ ...prev, events: evts }));
+        }),
+        fetchTask(fetchCategories(), (cats) => {
+          if (cats && cats.length > 0) setSettings(prev => ({ ...prev, custom_categories: cats }));
+        }),
+        fetchTask(fetchSubCategories(), (subCats) => {
+          if (subCats && subCats.length > 0) setSettings(prev => ({ ...prev, sub_categories: subCats }));
+        }),
+        fetchTask(fetchProducts(), setProducts),
+        fetchTask(fetchOrders(), setOrders),
+        fetchTask(fetchAliExpressOrders(), setAliExpressOrders),
+        fetchTask(fetchUsers(), setUsers),
+        fetchTask(fetchReviews(), setReviews)
+      ]);
 
       fetchAffiliateProducts().then(setAffiliateProducts);
       
@@ -197,11 +215,15 @@ export default function App() {
       setOffers(fetchOffers());
       setOfferSubmissions(fetchOfferSubmissions());
       setCurrentUser(getCurrentUser());
+      
+      try {
+        sessionStorage.setItem('veloral_data_loaded', 'true');
+      } catch {}
 
       // Reset dismissal if a new popup is activated in the same session
-      if (mergedSettings.active_event_popup_id) {
-        if (mergedSettings.active_event_popup_id !== lastPopupId) {
-          setLastPopupId(mergedSettings.active_event_popup_id);
+      if (latestSettings.active_event_popup_id) {
+        if (latestSettings.active_event_popup_id !== lastPopupId) {
+          setLastPopupId(latestSettings.active_event_popup_id);
           setIsEventPopupDismissed(false);
           try { sessionStorage.removeItem('veloral_event_dismissed'); } catch {}
         }
@@ -2336,6 +2358,7 @@ export default function App() {
           reviews={reviews}
           onDeleteReview={handleDeleteReview}
           onRefreshData={loadData}
+          showToast={showToast}
           onLoadMoreOrders={handleLoadMoreOrders}
           onLoadMoreProducts={handleLoadMoreProducts}
           onClose={() => setCurrentView('store')}

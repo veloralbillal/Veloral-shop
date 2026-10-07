@@ -57,6 +57,7 @@ interface AdminScreenProps {
   reviews: Review[];
   onDeleteReview: (id: string) => Promise<void>;
   onRefreshData: () => Promise<void>;
+  showToast: (msg: string) => void;
   onLoadMoreOrders?: (offset: number) => Promise<void>;
   onLoadMoreProducts?: (offset: number) => Promise<void>;
   onClose: () => void;
@@ -92,6 +93,7 @@ export const AdminScreen: React.FC<AdminScreenProps> = ({
   reviews,
   onDeleteReview,
   onRefreshData,
+  showToast,
   onLoadMoreOrders,
   onLoadMoreProducts,
   onClose,
@@ -203,7 +205,7 @@ export const AdminScreen: React.FC<AdminScreenProps> = ({
         throw new Error(data.message);
       }
     } catch (err: any) {
-      alert(`AI Generation Error: ${err.message}`);
+      showToast(`AI Generation Error: ${err.message}`);
     } finally {
       setIsGenerating(null);
     }
@@ -281,7 +283,7 @@ export const AdminScreen: React.FC<AdminScreenProps> = ({
 
   const handleRechargeAPI = async (order: Order) => {
     if (!settings.recharge_api_url) {
-      alert('অনুগ্রহ করে সেটিংস ট্যাব থেকে মোবাইল রিচার্জ API গেটওয়ে URL এবং কী (Key) সেট আপ করুন!');
+      showToast('অনুগ্রহ করে সেটিংস ট্যাব থেকে মোবাইল রিচার্জ API গেটওয়ে URL এবং কী (Key) সেট আপ করুন!');
       return;
     }
     
@@ -323,9 +325,9 @@ export const AdminScreen: React.FC<AdminScreenProps> = ({
       
       if (result.success || response.ok) {
         await onUpdateOrderStatus(order.id, 'completed', `AUTOMATED RECHARGE API COMPLETE. Gateway TxID: ${result.trx || 'N/A'}`);
-        alert(`মোবাইল রিচার্জ সফলভাবে সম্পন্ন হয়েছে!\nরিসিট নম্বর: ${result.trx || 'N/A'}`);
+        showToast(`মোবাইল রিচার্জ সফলভাবে সম্পন্ন হয়েছে!\nরিসিট নম্বর: ${result.trx || 'N/A'}`);
       } else {
-        alert(`রিচার্জ এপিআই ত্রুটি: ${result.message || 'Error occurred'}`);
+        showToast(`রিচার্জ এপিআই ত্রুটি: ${result.message || 'Error occurred'}`);
       }
     } catch (e: any) {
       setRechargeLog(`API Failure: ${e.message}`);
@@ -1106,7 +1108,7 @@ if (!empty($sql)) {
                   creditUserWallet(userId, diff, userId);
                 }
               }}
-              showToast={(msg) => alert(msg)}
+              showToast={showToast}
             />
           )}
 
@@ -1242,7 +1244,7 @@ if (!empty($sql)) {
               onUpdateOrderStatus={onUpdateOrderStatus}
               onRechargeAPI={handleRechargeAPI}
               isRechargingId={isRechargingId}
-              showToast={(msg) => alert(msg)}
+              showToast={showToast}
             />
           )}
 
@@ -1251,7 +1253,7 @@ if (!empty($sql)) {
             <AdminAccountManager
               accounts={accounts}
               onSaveAccounts={onSaveAccounts}
-              showToast={(msg) => alert(msg)}
+              showToast={showToast}
             />
           )}
 
@@ -1262,7 +1264,7 @@ if (!empty($sql)) {
               submissions={submissions}
               onSaveOffers={onSaveOffers}
               onRefreshData={onRefreshData}
-              showToast={(msg) => alert(msg)}
+              showToast={showToast}
             />
           )}
 
@@ -1270,7 +1272,7 @@ if (!empty($sql)) {
           {activeTab === 'affiliate' && (
             <AdminAffiliateSection
               settings={settings}
-              showToast={(msg) => alert(msg)}
+              showToast={showToast}
             />
           )}
           {activeTab === 'aliexpress' && (
@@ -1573,7 +1575,7 @@ if (!empty($sql)) {
                                 const file = e.target.files?.[0];
                                 if (file) {
                                   if (file.size > 5 * 1024 * 1024) {
-                                    alert('ফাইল সাইজ ৫MB-এর বেশি হওয়া যাবে না!');
+                                    showToast('ফাইল সাইজ ৫MB-এর বেশি হওয়া যাবে না!');
                                     return;
                                   }
                                   const reader = new FileReader();
@@ -1863,7 +1865,7 @@ if (!empty($sql)) {
                   <button
                     onClick={async () => {
                       if (!newTitle.trim() || !newPrice || !newImageUrl.trim()) {
-                        alert('অনুগ্রহ করে নাম, মূল্য এবং ইমেজ লিংকটি পূরণ করুন।');
+                        showToast('অনুগ্রহ করে নাম, মূল্য এবং ইমেজ লিংকটি পূরণ করুন।');
                         return;
                       }
 
@@ -1891,11 +1893,11 @@ if (!empty($sql)) {
                       if (editingProductId) {
                         await onUpdateProduct(editingProductId, productData);
                         handleCancelEdit();
-                        alert('প্রোডাক্টটি সফলভাবে আপডেট করা হয়েছে!');
+                        showToast('প্রোডাক্টটি সফলভাবে আপডেট করা হয়েছে!');
                       } else {
                         await onAddProduct(productData);
                         handleCancelEdit();
-                        alert('প্রোডাক্টটি সফলভাবে ক্যাটালগে যোগ করা হয়েছে!');
+                        showToast('প্রোডাক্টটি সফলভাবে ক্যাটালগে যোগ করা হয়েছে!');
                       }
                     }}
                     className={`w-full sm:w-auto px-6 py-3 font-extrabold text-xs rounded-xl cursor-pointer shadow-lg transition-all active:scale-95 ${
@@ -2002,7 +2004,7 @@ if (!empty($sql)) {
                 setLocalSettings(updated);
                 onSaveSettings(updated);
               }}
-              showToast={(msg) => alert(msg)}
+              showToast={showToast}
             />
           )}
 
@@ -2562,7 +2564,7 @@ if (!empty($sql)) {
               onDeleteCategory={onDeleteCategory}
               onSaveSubCategory={onSaveSubCategory}
               onDeleteSubCategory={onDeleteSubCategory}
-              showToast={(msg) => alert(msg)}
+              showToast={showToast}
             />
           )}
           {/* TAB 8: COUPONS */}
@@ -2571,7 +2573,7 @@ if (!empty($sql)) {
               coupons={coupons}
               onSaveCoupons={onSaveCoupons}
               onDeleteCoupon={onDeleteCoupon}
-              showToast={(msg) => alert(msg)}
+              showToast={showToast}
             />
           )}
 
@@ -2615,7 +2617,7 @@ if (!empty($sql)) {
                 setLocalSettings(updated);
                 await onSaveSettings(updated);
               }}
-              showToast={(msg) => alert(msg)}
+              showToast={showToast}
             />
           )}
 
@@ -2649,7 +2651,7 @@ if (!empty($sql)) {
                 setAdminTickets(updated);
               }}
               onRefreshTickets={() => setAdminTickets(fetchTickets())}
-              showToast={(msg) => alert(msg)}
+              showToast={showToast}
             />
           )}
 
@@ -2659,7 +2661,7 @@ if (!empty($sql)) {
               reviews={reviews}
               products={products}
               onDeleteReview={onDeleteReview}
-              showToast={(msg) => alert(msg)}
+              showToast={showToast}
             />
           )}
         </main>
