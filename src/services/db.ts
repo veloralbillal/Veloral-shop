@@ -629,7 +629,9 @@ function setLocalProducts(products: Product[]) {
 export function getLocalOrders(): Order[] {
   try {
     const raw = localStorage.getItem(LOCAL_STORAGE_KEYS.ORDERS);
-    return raw ? JSON.parse(raw) : [];
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
   } catch {
     return [];
   }
@@ -642,7 +644,9 @@ export function setLocalOrders(orders: Order[]) {
 export function getLocalAliExpressOrders(): AliExpressDemandOrder[] {
   try {
     const raw = localStorage.getItem(LOCAL_STORAGE_KEYS.ALIEXPRESS_ORDERS);
-    return raw ? JSON.parse(raw) : [];
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
   } catch {
     return [];
   }
@@ -651,7 +655,9 @@ export function getLocalAliExpressOrders(): AliExpressDemandOrder[] {
 export function getLocalReviews(): Review[] {
   try {
     const raw = localStorage.getItem(LOCAL_STORAGE_KEYS.REVIEWS);
-    return raw ? JSON.parse(raw) : [];
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
   } catch {
     return [];
   }
@@ -666,7 +672,14 @@ export function getLocalSettings(): StoreSettings {
     const raw = localStorage.getItem(LOCAL_STORAGE_KEYS.SETTINGS);
     if (!raw) return INITIAL_SETTINGS;
     const parsed = JSON.parse(raw);
-    return { ...INITIAL_SETTINGS, ...parsed };
+    if (!parsed || typeof parsed !== 'object') return INITIAL_SETTINGS;
+    return {
+      ...INITIAL_SETTINGS,
+      ...parsed,
+      events: Array.isArray(parsed.events) ? parsed.events : INITIAL_SETTINGS.events,
+      custom_categories: Array.isArray(parsed.custom_categories) && parsed.custom_categories.length > 0 ? parsed.custom_categories : INITIAL_SETTINGS.custom_categories,
+      sub_categories: Array.isArray(parsed.sub_categories) && parsed.sub_categories.length > 0 ? parsed.sub_categories : INITIAL_SETTINGS.sub_categories,
+    };
   } catch {
     return INITIAL_SETTINGS;
   }

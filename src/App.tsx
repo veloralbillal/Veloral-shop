@@ -67,15 +67,56 @@ export default function App() {
   const [accounts, setAccounts] = useState<AccountItem[]>(fetchAccounts());
   const [offers, setOffers] = useState<OfferItem[]>(fetchOffers());
   const [offerSubmissions, setOfferSubmissions] = useState<OfferSubmission[]>(fetchOfferSubmissions());
-  const [orders, setOrders] = useState<Order[]>(() => getLocalOrders());
-  const [aliExpressOrders, setAliExpressOrders] = useState<AliExpressDemandOrder[]>(() => getLocalAliExpressOrders());
-  const [users, setUsers] = useState<User[]>(() => {
-    const stored = getStoredUsers();
-    return stored.map(u => ({ id: u.id, name: u.name, phone: u.phone, email: u.email, role: u.role, created_at: u.created_at, wallet_balance: u.wallet_balance }));
+  const [orders, setOrders] = useState<Order[]>(() => {
+    try {
+      const o = getLocalOrders();
+      return Array.isArray(o) ? o : [];
+    } catch {
+      return [];
+    }
   });
-  const [reviews, setReviews] = useState<Review[]>(() => getLocalReviews());
+  const [aliExpressOrders, setAliExpressOrders] = useState<AliExpressDemandOrder[]>(() => {
+    try {
+      const a = getLocalAliExpressOrders();
+      return Array.isArray(a) ? a : [];
+    } catch {
+      return [];
+    }
+  });
+  const [users, setUsers] = useState<User[]>(() => {
+    try {
+      const stored = getStoredUsers();
+      if (!Array.isArray(stored)) return [];
+      return stored.filter(Boolean).map(u => ({
+        id: u?.id || '',
+        name: u?.name || '',
+        phone: u?.phone || '',
+        email: u?.email || '',
+        role: u?.role || 'customer',
+        created_at: u?.created_at || new Date().toISOString(),
+        wallet_balance: u?.wallet_balance || 0
+      }));
+    } catch {
+      return [];
+    }
+  });
+  const [reviews, setReviews] = useState<Review[]>(() => {
+    try {
+      const r = getLocalReviews();
+      return Array.isArray(r) ? r : [];
+    } catch {
+      return [];
+    }
+  });
   const [topupCatalog, setTopupCatalog] = useState<TopupItem[]>([]);
-  const [settings, setSettings] = useState<StoreSettings>(() => getLocalSettings());
+  const [settings, setSettings] = useState<StoreSettings>(() => {
+    try {
+      const s = getLocalSettings();
+      return s || INITIAL_SETTINGS;
+    } catch {
+      return INITIAL_SETTINGS;
+    }
+  });
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
 

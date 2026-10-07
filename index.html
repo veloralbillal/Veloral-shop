@@ -5,10 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <script>
       (function() {
-        var p = window.location.pathname;
-        if (!p.endsWith('/') && !p.slice(-5).includes('.')) {
-          window.location.replace(p + '/' + window.location.search + window.location.hash);
-        }
+        try {
+          var p = window.location.pathname;
+          if (p && p.length > 1 && !p.endsWith('/') && !p.includes('.') && !window.location.hostname.includes('run.app') && !window.location.hostname.includes('localhost')) {
+            window.location.replace(p + '/' + window.location.search + window.location.hash);
+          }
+        } catch (e) {}
       })();
     </script>
     <title>Veloral Digital &amp; Shop</title>
@@ -19,9 +21,10 @@
     <meta property="og:description" content="Digital products, physical goods, mobile &amp; game top-up, and AliExpress on-demand shopping platform." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
+    <link rel="stylesheet" crossorigin href="./assets/index-Bp3Or0xB.css">
   </head>
-  <body>
+  <body class="bg-slate-950 text-slate-100 min-h-screen antialiased selection:bg-blue-600 selection:text-white" style="background-color: #020617; color: #f8fafc;">
     <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <script type="module" src="./src/main.tsx"></script>
   </body>
 </html>
